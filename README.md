@@ -7,8 +7,7 @@
   - Count number of deletions to choose which mechanism to use:
     - Run naive binary mechanism on deletions to answer linear queries with PMW.
     - Run binary mechanism with restarts to answer linear queries with PMW.
-  - Count number of insertions.
-  - 
+  - Count number of deletions per node.
 
 ## Pseudocode
 
