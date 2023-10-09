@@ -37,6 +37,7 @@ def create_fake_dataset(num_rows=10000, path=None):
     df.to_csv(path, index=False)
 
 
+# TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
 class Dataset:
     def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval):
         """
