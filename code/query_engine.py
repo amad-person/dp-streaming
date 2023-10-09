@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from dataset import create_fake_dataset, Dataset
 from query import CountQuery
@@ -33,14 +32,33 @@ if __name__ == "__main__":
             num_nodes = 0
             current_tree_idx = utils.get_tree_idx(node_i)
 
-        # build current node
+        # build current nodes
         count_query = CountQuery(epsilon, sensitivity=utils.get_tree_height(node_i))
-        insertions_node = NaiveNode(ins_ids, count_query)
-        deletions_node = NaiveNode(del_ids, count_query)
+        ins_node = NaiveNode(ins_ids, count_query)
+        del_node = NaiveNode(del_ids, count_query)
+        num_nodes += 1
 
-        # TODO: update maps
-        insertions_tree_nodes = naive_binary_insertions_map.get(current_tree_idx, {})
-        deletions_tree_nodes = naive_binary_deletions_map.get(current_tree_idx, {})
+        # add current nodes to maps
+        ins_tree_nodes = naive_binary_insertions_map.get(current_tree_idx, [])
+        del_tree_nodes = naive_binary_deletions_map.get(current_tree_idx, [])
+        ins_tree_nodes.append(ins_node)
+        del_tree_nodes.append(del_node)
+
+        # update maps by merging nodes
+        n = num_nodes
+        while n > 0:
+            if n % 2 == 0:
+                # remove and merge last two nodes in the list
+                merged_ins_node = ins_tree_nodes.pop()
+                merged_ins_node.merge_node(ins_tree_nodes.pop())
+                ins_tree_nodes.append(merged_ins_node)
+
+                merged_del_node = del_tree_nodes.pop()
+                merged_del_node.merge_node(del_tree_nodes.pop())
+                del_tree_nodes.append(merged_del_node)
+            n = n / 2
+        naive_binary_insertions_map[current_tree_idx] = ins_tree_nodes
+        naive_binary_deletions_map[current_tree_idx] = del_tree_nodes
 
         # combine answers from all trees
         true_answer = 0

@@ -19,8 +19,18 @@ class NaiveNode(Node):
         super().__init__()
         self.ids = ids
         self.query = query
+
+        self.true_answer = None
+        self.private_answer = None
+        self.compute_answers()
+
+    def compute_answers(self):
         self.true_answer = self.query.get_true_answer(self.ids)
         self.private_answer = self.query.get_private_answer(self.ids)
+
+    def merge_node(self, node):
+        self.ids = self.ids + node.ids
+        self.compute_answers()
 
     def get_true_answer(self):
         return self.true_answer
