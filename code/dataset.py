@@ -3,6 +3,32 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
+def create_toy_dataset(path=None):
+    person_ids = list(range(25))
+    insertion_times = ['2023-01-01', '2023-01-01', '2023-01-01', '2023-01-01', '2023-01-01',
+                       '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02',
+                       '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03',
+                       '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04',
+                       '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05']
+    deletion_times = ['2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02',
+                      '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03',
+                      '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04',
+                      '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05',
+                      '2023-01-06', '2023-01-06', '2023-01-06', '2023-01-06', '2023-01-06']
+
+    # save to file
+    data_dict = {
+        "Person ID": person_ids,
+        "Insertion Time": insertion_times,
+        "Deletion Time": deletion_times
+    }
+    df = pd.DataFrame(data=data_dict)
+
+    if path is None:
+        path = "toy_dataset.csv"
+    df.to_csv(path, index=False)
+
+
 def create_fake_dataset(num_rows=10000, path=None):
     """
     Create fake dataset with "Person ID", "Insertion Time", "Deletion Time" cols.
@@ -39,7 +65,7 @@ def create_fake_dataset(num_rows=10000, path=None):
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
 class Dataset:
-    def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval):
+    def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval, num_batches=None):
         """
         Wrapper for a dataset.
 
@@ -103,9 +129,8 @@ class Dataset:
         # create bins according to the time interval
         insertion_times = self.df[self.insertion_time_col]
         deletion_times = self.df[self.deletion_time_col]
-        start_time = min(insertion_times.min(), deletion_times.min())
-        # need to create an extra batch to cover end_time
-        end_time = max(insertion_times.max(), deletion_times.max()) + self.time_interval
+        start_time = min(insertion_times.min(), deletion_times.min()) - self.time_interval  # to cover start time
+        end_time = max(insertion_times.max(), deletion_times.max()) + self.time_interval  # to cover end time
         batches = pd.date_range(start=start_time,
                                 end=end_time,
                                 freq=self.time_interval)
@@ -119,7 +144,7 @@ class Dataset:
         self.df["deletion_batch"] = np.array(bucketed_deletions, dtype=np.int64)
 
         # set number of batches
-        return len(batches)
+        return max(bucketed_insertions.max(), bucketed_deletions.max())
 
     def get_batches(self):
         """
@@ -128,8 +153,8 @@ class Dataset:
         :return: Iterator that yields (insertion_ids, deletion_ids) per batch.
         """
         for batch_i in range(self.num_batches):
-            insertion_ids = self.df[self.df["insertion_batch"] == batch_i]["Person ID"].to_list()
-            deletion_ids = self.df[self.df["deletion_batch"] == batch_i]["Person ID"].to_list()
+            insertion_ids = self.df[self.df["insertion_batch"] == batch_i][self.id_col].to_list()
+            deletion_ids = self.df[self.df["deletion_batch"] == batch_i][self.id_col].to_list()
             yield insertion_ids, deletion_ids
 
 

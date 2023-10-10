@@ -13,6 +13,10 @@ class Node(ABC):
     def get_private_answer(self):
         pass
 
+    @abstractmethod
+    def __repr__(self):
+        pass
+
 
 class NaiveNode(Node):
     def __init__(self, ids, query):
@@ -38,6 +42,9 @@ class NaiveNode(Node):
     def get_private_answer(self):
         return self.private_answer
 
+    def __repr__(self):
+        return f"IDs: {self.ids}"
+
 
 class RestartNode(Node):
     def __init__(self):
@@ -50,4 +57,7 @@ class RestartNode(Node):
         pass
 
     def restart(self):
+        pass
+
+    def __repr__(self):
         pass
