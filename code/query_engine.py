@@ -170,13 +170,16 @@ if __name__ == "__main__":
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int)
     dataset.save_to_path("toy_dataset_batched_1day.csv")
-    query = CountQuery(sensitivity=1)
+
     epsilon = 10.0
     delta = None
-    naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, query, epsilon, delta)
+
+    nb_query = CountQuery(sensitivity=1)
+    naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
     true_ans, private_ans = naive_binary_query_engine.run()
     print("Naive Binary", true_ans, private_ans)
 
-    binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, query, epsilon, delta)
+    br_query = CountQuery(sensitivity=1)
+    binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
     br_true_ans, br_private_ans = binary_restarts_query_engine.run()
     print("Binary Restarts", br_true_ans, br_private_ans)

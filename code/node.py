@@ -116,7 +116,7 @@ class RestartNode(Node):
         num_deletions_error = (1 / self.epsilon
                                * np.power(np.log2(max(self.num_nodes_nb_del_count, 1)), 1.5)  # TODO: check t
                                * np.log2(self.beta))
-        if num_deletions > (self.num_ins_ids / 2 + num_deletions_error):
+        if num_deletions > ((self.num_ins_ids / 2) + num_deletions_error):
             self.restart()
         else:
             del_ids_private_answer = self.get_answer_from_naive_binary_deletions_map()
@@ -226,4 +226,4 @@ class RestartNode(Node):
         self.compute_answers()
 
     def __repr__(self):
-        pass
+        return f"IDs: {self.ins_ids}\tDel IDs: {self.del_ids}"
