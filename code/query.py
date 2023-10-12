@@ -29,12 +29,18 @@ class CountQuery(Query):
         self.epsilon = epsilon
 
     def get_true_answer(self, ids):
-        return len(ids)
+        if ids is not None:
+            return len(ids)
+        else:
+            return 0
 
     def get_private_answer(self, ids):
-        true_answer = self.get_true_answer(ids)
-        laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
-        return true_answer + laplace_noise
+        if ids is not None:
+            true_answer = self.get_true_answer(ids)
+            laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
+            return true_answer + laplace_noise
+        else:
+            return 0
 
 
 class PredicateQuery(Query):
@@ -49,10 +55,16 @@ class PredicateQuery(Query):
         self.epsilon = epsilon
 
     def get_true_answer(self, ids):
-        df = self.dataset.select_rows_from_ids(ids)
-        return df.query(self.predicate).shape[0]
+        if ids is not None:
+            df = self.dataset.select_rows_from_ids(ids)
+            return df.query(self.predicate).shape[0]
+        else:
+            return 0
 
     def get_private_answer(self, ids):
-        true_answer = self.get_true_answer(ids)
-        laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
-        return true_answer + laplace_noise
+        if ids is not None:
+            true_answer = self.get_true_answer(ids)
+            laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
+            return true_answer + laplace_noise
+        else:
+            return 0

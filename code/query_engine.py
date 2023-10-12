@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from dataset import create_toy_dataset, create_fake_dataset, Dataset
 from query import CountQuery
-from node import NaiveNode
+from node import NaiveNode, RestartNode
 import utils
 
 
@@ -22,8 +22,8 @@ class NaiveBinaryQueryEngine(QueryEngine):
         self.query = query
         self.epsilon = epsilon
         self.delta = delta
-        self.naive_binary_insertions_map = {}
-        self.naive_binary_deletions_map = {}
+        self.naive_binary_insertions_map = {}  # stream to track insertions
+        self.naive_binary_deletions_map = {}  # stream to track deletions
 
     def run(self):
         true_answers, private_answers = [], []
@@ -32,9 +32,10 @@ class NaiveBinaryQueryEngine(QueryEngine):
             node_i = i + 1
 
             # start building new tree
-            if utils.get_tree_idx(node_i) != current_tree_idx:
+            tree_idx = utils.get_tree_idx(node_i)
+            if tree_idx != current_tree_idx:
                 num_nodes = 0
-                current_tree_idx = utils.get_tree_idx(node_i)
+                current_tree_idx = tree_idx
 
             # build current nodes
             self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
@@ -54,13 +55,13 @@ class NaiveBinaryQueryEngine(QueryEngine):
             while n > 0:
                 if n % 2 == 0:
                     # remove and merge last two nodes in the list
-                    second_ins_node = ins_tree_nodes.pop()  # ins_trees_node[-1]
-                    merged_ins_node = ins_tree_nodes.pop()  # ins_trees_node[-2]
+                    second_ins_node = ins_tree_nodes.pop()  # ins_tree_nodes[-1]
+                    merged_ins_node = ins_tree_nodes.pop()  # ins_tree_nodes[-2]
                     merged_ins_node.merge_node(second_ins_node)
                     ins_tree_nodes.append(merged_ins_node)
 
-                    second_del_node = del_tree_nodes.pop()  # del_trees_node[-1]
-                    merged_del_node = del_tree_nodes.pop()  # del_trees_node[-2]
+                    second_del_node = del_tree_nodes.pop()  # del_tree_nodes[-1]
+                    merged_del_node = del_tree_nodes.pop()  # del_tree_nodes[-2]
                     merged_del_node.merge_node(second_del_node)
                     del_tree_nodes.append(merged_del_node)
                 n = n / 2
@@ -83,6 +84,69 @@ class NaiveBinaryQueryEngine(QueryEngine):
             private_answers.append(private_answer)
 
         return true_answers, private_answers
+
+
+class BinaryRestartsQueryEngine(QueryEngine):
+    def __init__(self, dataset, query, epsilon, delta):
+        super().__init__()
+        self.dataset = dataset
+        self.query = query
+        self.epsilon = epsilon
+        self.delta = delta
+        self.binary_restarts_map = {}
+
+    def run(self):
+        true_answers, private_answers = [], []
+        num_nodes, current_tree_idx = 0, 0
+        for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
+            node_i = i + 1
+
+            # start building new tree
+            tree_idx = utils.get_tree_idx(node_i)
+            if tree_idx != current_tree_idx:
+                num_nodes = 0
+                current_tree_idx = tree_idx
+
+            # build current node
+            self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
+                                              delta=self.delta)
+            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i))
+            num_nodes += 1
+
+            # add current node to map
+            tree_nodes = self.binary_restarts_map.get(current_tree_idx, [])
+            tree_nodes.append(node)
+
+            # update map by merging nodes
+            n = num_nodes
+            while n > 0:
+                if n % 2 == 0:
+                    # remove and merge last two nodes in the list
+                    second_node = tree_nodes.pop()  # trees_node[-1]
+                    merged_node = tree_nodes.pop()  # trees_node[-2]
+                    merged_node.merge_node(second_node)
+                    tree_nodes.append(merged_node)
+                n = n / 2
+            self.binary_restarts_map[current_tree_idx] = tree_nodes
+
+            # propagate deletions to all nodes
+            for tree_idx, tree_nodes in self.binary_restarts_map.items():
+                for node in tree_nodes:
+                    node.process_deletions(del_ids)
+
+            # combine answers from all trees
+            true_answer = 0
+            private_answer = 0
+            for tree_idx, tree_nodes in self.binary_restarts_map.items():
+                for node in tree_nodes:
+                    true_answer += node.get_true_answer()
+                    private_answer += node.get_private_answer()
+
+            true_answers.append(true_answer)
+            private_answers.append(private_answer)
+
+        return true_answers, private_answers
+
 
 
 # Testing
@@ -111,3 +175,8 @@ if __name__ == "__main__":
     delta = None
     naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, query, epsilon, delta)
     true_ans, private_ans = naive_binary_query_engine.run()
+    print("Naive Binary", true_ans, private_ans)
+
+    binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, query, epsilon, delta)
+    br_true_ans, br_private_ans = binary_restarts_query_engine.run()
+    print("Binary Restarts", br_true_ans, br_private_ans)
