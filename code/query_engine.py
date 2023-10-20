@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
-from dataset import create_toy_dataset, create_fake_dataset, Dataset
+from dataset import create_toy_dataset, create_fake_random_dataset, create_fake_ins_after_del_dataset, Dataset
 from query import CountQuery
 from node import NaiveNode, RestartNode
 import utils
@@ -153,25 +153,27 @@ class BinaryRestartsQueryEngine(QueryEngine):
 # Testing
 if __name__ == "__main__":
     seed = 1234
-    # n_rows = 10000
-    # create_fake_dataset(n_rows)
-    # time_int = pd.DateOffset(days=1)
-    # time_int_str = "1day"
-    # dataset = Dataset.load_from_path(f"fake_dataset_{n_rows}.csv",
-    #                                  id_col="Person ID",
-    #                                  insertion_time_col="Insertion Time",
-    #                                  deletion_time_col="Deletion Time",
-    #                                  time_interval=time_int)
-    # dataset.save_to_path(f"fake_dataset_{n_rows}_batched_{time_int_str}.csv")
 
-    create_toy_dataset()
+    n_ins = 1000
+    n_repeats = 10
+    create_fake_ins_after_del_dataset(num_ins=n_ins, num_repeats=n_repeats)
     time_int = pd.DateOffset(days=1)
-    dataset = Dataset.load_from_path("toy_dataset.csv",
+    time_int_str = "1day"
+    dataset = Dataset.load_from_path(f"fake_ins_after_del_dataset_{n_ins}_{n_repeats}.csv",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int)
-    dataset.save_to_path("toy_dataset_batched_1day.csv")
+    dataset.save_to_path(f"fake_ins_after_del_dataset_{n_ins}_{n_repeats}_batched_{time_int_str}.csv")
+
+    # create_toy_dataset()
+    # time_int = pd.DateOffset(days=1)
+    # dataset = Dataset.load_from_path("toy_dataset.csv",
+    #                                  id_col="Person ID",
+    #                                  insertion_time_col="Insertion Time",
+    #                                  deletion_time_col="Deletion Time",
+    #                                  time_interval=time_int)
+    # dataset.save_to_path("toy_dataset_batched_1day.csv")
 
     epsilon = 10.0
     delta = None

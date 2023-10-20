@@ -29,7 +29,7 @@ def create_toy_dataset(path=None):
     df.to_csv(path, index=False)
 
 
-def create_fake_dataset(num_rows=10000, path=None):
+def create_fake_random_dataset(num_rows=10000, path=None):
     """
     Create fake dataset with "Person ID", "Insertion Time", "Deletion Time" cols.
 
@@ -59,13 +59,36 @@ def create_fake_dataset(num_rows=10000, path=None):
     df = pd.DataFrame(data=data_dict)
 
     if path is None:
-        path = f"fake_dataset_{num_rows}.csv"
+        path = f"fake_random_dataset_{num_rows}.csv"
+    df.to_csv(path, index=False)
+
+
+def create_fake_ins_after_del_dataset(num_ins=2 ** 20, num_repeats=6, path=None):
+    person_ids = list(range(num_ins * num_repeats))
+    insertion_times, deletion_times = [], []
+    start_date = datetime(year=2023, month=1, day=1)
+    for r in range(num_repeats):
+        insertion_times += [start_date] * num_ins
+        start_date += timedelta(days=1)
+        deletion_times += [start_date] * num_ins
+        start_date += timedelta(days=1)
+
+    # save to file
+    data_dict = {
+        "Person ID": person_ids,
+        "Insertion Time": insertion_times,
+        "Deletion Time": deletion_times
+    }
+    df = pd.DataFrame(data=data_dict)
+
+    if path is None:
+        path = f"fake_ins_after_del_dataset_{num_ins}_{num_repeats}.csv"
     df.to_csv(path, index=False)
 
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
 class Dataset:
-    def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval, num_batches=None):
+    def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval):
         """
         Wrapper for a dataset.
 
@@ -161,7 +184,7 @@ class Dataset:
 # Testing
 if __name__ == "__main__":
     n_rows = 10000
-    create_fake_dataset(n_rows)
+    create_fake_random_dataset(n_rows)
 
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
