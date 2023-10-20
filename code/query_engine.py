@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+import numpy as np
 from dataset import create_toy_dataset, create_fake_dataset, Dataset
 from query import CountQuery
 from node import NaiveNode, RestartNode
@@ -151,6 +152,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
 
 # Testing
 if __name__ == "__main__":
+    seed = 1234
     # n_rows = 10000
     # create_fake_dataset(n_rows)
     # time_int = pd.DateOffset(days=1)
@@ -174,12 +176,14 @@ if __name__ == "__main__":
     epsilon = 10.0
     delta = None
 
-    nb_query = CountQuery(sensitivity=1)
+    rng = np.random.default_rng(seed)
+
+    nb_query = CountQuery(sensitivity=1, rng=rng)
     naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
     true_ans, private_ans = naive_binary_query_engine.run()
     print("Naive Binary", true_ans, private_ans)
 
-    br_query = CountQuery(sensitivity=1)
+    br_query = CountQuery(sensitivity=1, rng=rng)
     binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
     br_true_ans, br_private_ans = binary_restarts_query_engine.run()
     print("Binary Restarts", br_true_ans, br_private_ans)

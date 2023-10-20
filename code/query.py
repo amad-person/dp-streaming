@@ -20,10 +20,14 @@ class Query(ABC):
 
 
 class CountQuery(Query):
-    def __init__(self, sensitivity=None, epsilon=None):
+    def __init__(self, sensitivity=None, epsilon=None, rng=None):
         super().__init__()
         self.sensitivity = sensitivity
         self.epsilon = epsilon
+        if rng is None:
+            self.rng = np.random.default_rng(1000)
+        else:
+            self.rng = rng
 
     def set_privacy_parameters(self, epsilon, delta=None):
         self.epsilon = epsilon
@@ -37,19 +41,23 @@ class CountQuery(Query):
     def get_private_answer(self, ids):
         if ids is not None:
             true_answer = self.get_true_answer(ids)
-            laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
+            laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
             return true_answer + laplace_noise
         else:
             return 0
 
 
 class PredicateQuery(Query):
-    def __init__(self, dataset=None, predicate=None, sensitivity=None, epsilon=None):
+    def __init__(self, dataset=None, predicate=None, sensitivity=None, epsilon=None, rng=None):
         super().__init__()
         self.dataset = dataset
         self.predicate = predicate
         self.sensitivity = sensitivity
         self.epsilon = epsilon
+        if rng is None:
+            self.rng = np.random.default_rng(1000)
+        else:
+            self.rng = rng
 
     def set_privacy_parameters(self, epsilon, delta=None):
         self.epsilon = epsilon
@@ -64,7 +72,7 @@ class PredicateQuery(Query):
     def get_private_answer(self, ids):
         if ids is not None:
             true_answer = self.get_true_answer(ids)
-            laplace_noise = np.random.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
+            laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
             return true_answer + laplace_noise
         else:
             return 0
