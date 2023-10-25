@@ -1,98 +1,17 @@
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 
-
-def create_toy_dataset(path=None):
-    person_ids = list(range(25))
-    insertion_times = ['2023-01-01', '2023-01-01', '2023-01-01', '2023-01-01', '2023-01-01',
-                       '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02',
-                       '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03',
-                       '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04',
-                       '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05']
-    deletion_times = ['2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02', '2023-01-02',
-                      '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03', '2023-01-03',
-                      '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04', '2023-01-04',
-                      '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05', '2023-01-05',
-                      '2023-01-06', '2023-01-06', '2023-01-06', '2023-01-06', '2023-01-06']
-
-    # save to file
-    data_dict = {
-        "Person ID": person_ids,
-        "Insertion Time": insertion_times,
-        "Deletion Time": deletion_times
-    }
-    df = pd.DataFrame(data=data_dict)
-
-    if path is None:
-        path = "toy_dataset.csv"
-    df.to_csv(path, index=False)
-
-
-def create_fake_random_dataset(num_rows=10000, path=None):
-    """
-    Create fake dataset with "Person ID", "Insertion Time", "Deletion Time" cols.
-
-    :param num_rows: Number of rows in fake dataset.
-    :param path: Path of CSV file where the fake dataset will be saved.
-    """
-    person_ids = list(range(num_rows))
-
-    # generate random insertion times for each person
-    start_date = datetime(year=2023, month=1, day=1)
-    end_date = datetime(year=2023, month=12, day=31)
-    possible_timestamps = np.arange(start_date, end_date, dtype="datetime64[s]")
-    insertion_times = np.random.choice(possible_timestamps, size=num_rows)
-
-    # generate random deletion times for each person (deletion times should be after insertion times)
-    time_deltas = np.array([timedelta(days=np.random.randint(1, 30)) for _ in range(num_rows)],
-                           dtype="timedelta64[s]")
-    deletion_times = insertion_times + time_deltas
-    deletion_times = np.where(deletion_times > end_date, end_date, deletion_times)
-
-    # save to file
-    data_dict = {
-        "Person ID": person_ids,
-        "Insertion Time": insertion_times,
-        "Deletion Time": deletion_times
-    }
-    df = pd.DataFrame(data=data_dict)
-
-    if path is None:
-        path = f"fake_random_dataset_{num_rows}.csv"
-    df.to_csv(path, index=False)
-
-
-def create_fake_ins_after_del_dataset(num_ins=2 ** 20, num_repeats=6, path=None):
-    person_ids = list(range(num_ins * num_repeats))
-    insertion_times, deletion_times = [], []
-    start_date = datetime(year=2023, month=1, day=1)
-    for r in range(num_repeats):
-        insertion_times += [start_date] * num_ins
-        start_date += timedelta(days=1)
-        deletion_times += [start_date] * num_ins
-        start_date += timedelta(days=1)
-
-    # save to file
-    data_dict = {
-        "Person ID": person_ids,
-        "Insertion Time": insertion_times,
-        "Deletion Time": deletion_times
-    }
-    df = pd.DataFrame(data=data_dict)
-
-    if path is None:
-        path = f"fake_ins_after_del_dataset_{num_ins}_{num_repeats}.csv"
-    df.to_csv(path, index=False)
+from datasets.preprocessor import create_fake_random_dataset
 
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
 class Dataset:
-    def __init__(self, df, id_col, insertion_time_col, deletion_time_col, time_interval):
+    def __init__(self, df, domain, id_col, insertion_time_col, deletion_time_col, time_interval):
         """
         Wrapper for a dataset.
 
         :param df: pandas dataframe to wrap.
+        :param domain: dict of feature names -> possible values each feature can take.
         :param id_col: Column name for the record ID.
         :param insertion_time_col: Column name for the insertion timestamp.
         :param deletion_time_col: Column name for the deletion timestamp.
@@ -100,6 +19,7 @@ class Dataset:
             the time interval to batch the dataset over.
         """
         self.df = df
+        self.domain = domain
         self.id_col = id_col
         self.insertion_time_col = insertion_time_col
         self.deletion_time_col = deletion_time_col
@@ -107,11 +27,12 @@ class Dataset:
         self.num_batches = self.create_batches()
 
     @staticmethod
-    def load_from_path(path, id_col, insertion_time_col, deletion_time_col, time_interval):
+    def load_from_path(path, domain_path, id_col, insertion_time_col, deletion_time_col, time_interval):
         """
         Load dataset from CSV file and returned wrapped Dataset.
 
         :param path: CSV dataset to wrap.
+        :param domain_path: JSON file of feature names -> possible values each feature can take.
         :param id_col: Column name for the record ID.
         :param insertion_time_col: Column name for the insertion timestamp.
         :param deletion_time_col: Column name for the deletion timestamp.
@@ -120,7 +41,8 @@ class Dataset:
         :return: A Dataset object wrapping the specified CSV dataset.
         """
         df = pd.read_csv(path)
-        return Dataset(df, id_col, insertion_time_col, deletion_time_col, time_interval)
+        domain = pd.read_json(domain_path)
+        return Dataset(df, domain, id_col, insertion_time_col, deletion_time_col, time_interval)
 
     def save_to_path(self, path):
         """
@@ -180,6 +102,9 @@ class Dataset:
             deletion_ids = self.df[self.df["deletion_batch"] == batch_i][self.id_col].to_list()
             yield insertion_ids, deletion_ids
 
+    def get_domain(self):
+        return self.domain
+
 
 # Testing
 if __name__ == "__main__":
@@ -188,12 +113,13 @@ if __name__ == "__main__":
 
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    fake_dataset = Dataset.load_from_path(f"fake_dataset_{n_rows}.csv",
+    fake_dataset = Dataset.load_from_path(f"../datasets/fake_random_dataset_{n_rows}.csv",
+                                          domain_path=f"../datasets/fake_random_dataset_{n_rows}_domain.json",
                                           id_col="Person ID",
                                           insertion_time_col="Insertion Time",
                                           deletion_time_col="Deletion Time",
                                           time_interval=time_int)
-    fake_dataset.save_to_path(f"fake_dataset_{n_rows}_batched_{time_int_str}.csv")
+    fake_dataset.save_to_path(f"../datasets/fake_random_dataset_{n_rows}_batched_{time_int_str}.csv")
     for i, (ins_ids, del_ids) in enumerate(fake_dataset.get_batches()):
         print("Batch:", i)
         print("Insertions:", ins_ids)

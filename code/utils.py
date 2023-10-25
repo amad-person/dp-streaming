@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def get_first_non_zero_lsb(binary_num):
@@ -17,3 +18,18 @@ def get_tree_idx(num):
 
 def get_tree_height(num):
     return get_tree_idx(num)
+
+
+# TODO
+def init_synthetic_histogram(domain):
+    return []
+
+
+# TODO
+def get_synthetic_dataset_from_histogram(synthetic_hist, domain):
+    return pd.DataFrame(data={})
+
+
+# TODO
+def get_histogram_predicate(predicate, domain):
+    return
