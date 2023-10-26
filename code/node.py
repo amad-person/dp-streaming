@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
+
 import numpy as np
-from query import CountQuery
+
 import utils
+from query import CountQuery
 
 
 class Node(ABC):

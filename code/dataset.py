@@ -1,7 +1,7 @@
+import json
+
 import numpy as np
 import pandas as pd
-import json
-from data.preprocessor import create_fake_random_dataset
 
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.

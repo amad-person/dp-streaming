@@ -1,7 +1,3 @@
-import numpy as np
-import pandas as pd
-
-
 def get_first_non_zero_lsb(binary_num):
     binary_str = str(binary_num)[::-1]
     return binary_str.index('1')
