@@ -129,7 +129,7 @@ class Dataset:
             query_for_df += f"`{feature}` == 0"
             if idx != (len(self.domain.keys()) - 1):
                 query_for_df += " & "
-        assert df_hist.flatten()[0] == self.df.query(query_for_df).shape[0]
+        assert df_hist.flatten()[0] == reduced_df.query(query_for_df).shape[0]
 
         return df_hist, df_hist_edges
 
@@ -172,11 +172,9 @@ if __name__ == "__main__":
                                            deletion_time_col="Deletion Time",
                                            time_interval=time_int)
     adult_dataset.save_to_path(f"../data/adult_reduced_batched_{time_int_str}.csv")
-    # for i, (ins_ids, del_ids) in enumerate(adult_dataset.get_batches()):
-    #     print("Batch:", i)
-    #     print("Insertions:", ins_ids)
-    #     print("Deletions", del_ids)
+    for i, (ins_ids, del_ids) in enumerate(adult_dataset.get_batches()):
+        print("Batch:", i)
+        print("Insertions:", ins_ids)
+        print("Deletions", del_ids)
 
-    hist, edges = adult_dataset.get_hist_repr()
-    print(hist.shape)
-    print(edges)
+    hist, edges = adult_dataset.get_hist_repr(ids=adult_dataset.df[adult_dataset.id_col])

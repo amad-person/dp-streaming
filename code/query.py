@@ -136,11 +136,12 @@ class PmwQuery(Query):
         workload_hist = []
         for predicate in workload:
             # predicate is a str in the format of a pandas query, e.g., feat1 == val & feat2 == val
+            # TODO: add check for valid predicates
             conditions = predicate.split(" & ")
             predicate_hist = [None] * num_feats
             for cond in conditions:
                 feat, val = cond.split(" == ")
-                predicate_hist[feat_names.index(feat)] = val  # TODO: add check for valid predicates
+                predicate_hist[feat_names.index(feat)] = int(val)
             workload_hist.append(tuple(predicate_hist))
         self.workload_hist = workload_hist
 
@@ -162,11 +163,17 @@ class PmwQuery(Query):
         return 0
 
     def _update_synthetic_hist(self, synthetic_hist, measurements):
-        for _ in range(50):
+        total = synthetic_hist.sum()
+        for _ in range(1):
             for pred_idx in measurements.keys():
                 error = measurements[pred_idx] - synthetic_hist[self.workload_hist[pred_idx]].sum()
-                synthetic_hist = synthetic_hist  # TODO: update according to the error
-                synthetic_hist /= synthetic_hist.flatten().sum()  # re-normalize
+
+                mask = np.ones_like(synthetic_hist)
+                mask[self.workload_hist[pred_idx]] = 1
+                factor = np.exp((mask * error) / (2 * total))
+
+                synthetic_hist *= factor
+                synthetic_hist /= synthetic_hist.sum()  # re-normalize
         return synthetic_hist
 
     def _mwem(self, ids):
@@ -175,11 +182,13 @@ class PmwQuery(Query):
         # initialize histogram as a uniform distribution
         synthetic_hist = np.ones(self.dataset.get_synthetic_hist_shape(),  # dimensions = product of domains
                                  dtype=np.float32)
-        synthetic_hist /= synthetic_hist.flatten().sum()  # normalize
+        synthetic_hist /= synthetic_hist.sum()  # normalize
 
         measurements = {}  # dict of query idx -> answer on synthetic dataset
         for iteration in range(self.iterations):
             epsilon_for_exponential = (self.epsilon / (2 * self.iterations))
+
+            # select new predicate to measure
             selected_pred_idx = self._select_predicate_using_exponential_mech(true_hist_answers,
                                                                               synthetic_hist,
                                                                               epsilon_for_exponential)
@@ -197,8 +206,22 @@ class PmwQuery(Query):
         # create a tabular dataset from the histogram
         self.synthetic_dataset = self._create_synthetic_dataset(synthetic_hist, num_records=len(ids))
 
-    # TODO: fill this out
     def _create_synthetic_dataset(self, synthetic_hist, num_records):
-        print(self.synthetic_dataset)
-        return pd.DataFrame({})
+        def _reverse_hist_index(index, domain_sizes):
+            new_index = [0] * len(domain_sizes)
+            for i, s in enumerate(domain_sizes):
+                new_index[i] += index % s
+                index -= index % s
+                index //= s
+            return new_index
 
+        flattened_synthetic_hist = synthetic_hist.flatten()
+        samples = self.rng.choice(a=np.array(range(len(flattened_synthetic_hist))),
+                                  size=num_records,
+                                  p=flattened_synthetic_hist)
+        data = []
+        dom_sizes = self.dataset.get_synthetic_hist_shape()
+        for idx in samples:
+            row = _reverse_hist_index(idx, dom_sizes)
+            data.append(row)
+        return pd.DataFrame(data, columns=list(self.dataset.get_domain().keys()))
