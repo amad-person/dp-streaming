@@ -41,7 +41,9 @@ if __name__ == "__main__":
         "Batch Number": batch_nums
     }
     df = pd.DataFrame(data_dict)
+    plt.title(f"Query Type: {query_type}")
     sns.lineplot(data=df, x="Batch Number", y="Absolute Error", hue="Mechanism")
+    plt.savefig(f"{exp_save_dir}/avg_error_vs_batch.png")
     plt.show()
 
 
