@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-
-from datasets.preprocessor import create_fake_random_dataset
+import json
+from data.preprocessor import create_fake_random_dataset
 
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
@@ -25,6 +25,8 @@ class Dataset:
         self.deletion_time_col = deletion_time_col
         self.time_interval = time_interval
         self.num_batches = self.create_batches()
+        self.df_hist = None
+        self.df_hist_edges = None
 
     @staticmethod
     def load_from_path(path, domain_path, id_col, insertion_time_col, deletion_time_col, time_interval):
@@ -41,7 +43,8 @@ class Dataset:
         :return: A Dataset object wrapping the specified CSV dataset.
         """
         df = pd.read_csv(path)
-        domain = pd.read_json(domain_path)
+        with open(domain_path, "r") as domain_file:
+            domain = json.load(domain_file)
         return Dataset(df, domain, id_col, insertion_time_col, deletion_time_col, time_interval)
 
     def save_to_path(self, path):
@@ -105,22 +108,78 @@ class Dataset:
     def get_domain(self):
         return self.domain
 
+    def get_hist_repr(self):
+        df_bins = []
+        for feature in self.domain.keys():
+            feature_domain = self.domain[feature]
+            min_feature_value = 0
+            if isinstance(feature_domain, int):
+                max_feature_value = feature_domain - 1
+            else:
+                max_feature_value = len(feature_domain) - 1
+            bins = list(range(max_feature_value - min_feature_value + 2))
+            df_bins.append(bins)
+        df_arr = self.df.drop(columns=[self.id_col, self.insertion_time_col, self.deletion_time_col,
+                                       "insertion_batch", "deletion_batch"]).to_numpy()
+        df_hist, df_hist_edges = np.histogramdd(df_arr, bins=df_bins)
+
+        # test histogram representation
+        query_for_df = ""
+        for idx, feature in enumerate(self.domain.keys()):
+            query_for_df += f"`{feature}` == 0"
+            if idx != (len(self.domain.keys()) - 1):
+                query_for_df += " & "
+        assert df_hist.flatten()[0] == self.df.query(query_for_df).shape[0]
+
+        self.df_hist = df_hist
+        self.df_hist_edges = df_hist_edges
+
+        return df_hist, df_hist_edges
+
+    def get_synthetic_hist_shape(self):
+        shape = []
+        for feature in self.domain.keys():
+            feature_domain = self.domain[feature]
+            if isinstance(feature_domain, int):
+                shape.append(feature_domain)
+            else:
+                shape.append(len(feature_domain))
+        return shape
+
 
 # Testing
 if __name__ == "__main__":
-    n_rows = 10000
-    create_fake_random_dataset(n_rows)
+    # n_rows = 10000
+    # create_fake_random_dataset(n_rows)
+    #
+    # time_int = pd.DateOffset(days=1)
+    # time_int_str = "1day"
+    # fake_dataset = Dataset.load_from_path(f"../data/fake_random_dataset_{n_rows}.csv",
+    #                                       domain_path=f"../data/fake_random_dataset_{n_rows}_domain.json",
+    #                                       id_col="Person ID",
+    #                                       insertion_time_col="Insertion Time",
+    #                                       deletion_time_col="Deletion Time",
+    #                                       time_interval=time_int)
+    # fake_dataset.save_to_path(f"../data/fake_random_dataset_{n_rows}_batched_{time_int_str}.csv")
+    # for i, (ins_ids, del_ids) in enumerate(fake_dataset.get_batches()):
+    #     print("Batch:", i)
+    #     print("Insertions:", ins_ids)
+    #     print("Deletions", del_ids)
 
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    fake_dataset = Dataset.load_from_path(f"../datasets/fake_random_dataset_{n_rows}.csv",
-                                          domain_path=f"../datasets/fake_random_dataset_{n_rows}_domain.json",
-                                          id_col="Person ID",
-                                          insertion_time_col="Insertion Time",
-                                          deletion_time_col="Deletion Time",
-                                          time_interval=time_int)
-    fake_dataset.save_to_path(f"../datasets/fake_random_dataset_{n_rows}_batched_{time_int_str}.csv")
-    for i, (ins_ids, del_ids) in enumerate(fake_dataset.get_batches()):
-        print("Batch:", i)
-        print("Insertions:", ins_ids)
-        print("Deletions", del_ids)
+    adult_dataset = Dataset.load_from_path("../data/adult_reduced.csv",
+                                           domain_path="../data/adult_reduced_domain.json",
+                                           id_col="Person ID",
+                                           insertion_time_col="Insertion Time",
+                                           deletion_time_col="Deletion Time",
+                                           time_interval=time_int)
+    adult_dataset.save_to_path(f"../data/adult_reduced_batched_{time_int_str}.csv")
+    # for i, (ins_ids, del_ids) in enumerate(adult_dataset.get_batches()):
+    #     print("Batch:", i)
+    #     print("Insertions:", ins_ids)
+    #     print("Deletions", del_ids)
+
+    hist, edges = adult_dataset.get_hist_repr()
+    print(hist.shape)
+    print(edges)

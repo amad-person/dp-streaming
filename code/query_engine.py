@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
 from dataset import Dataset
-from datasets.preprocessor import create_toy_dataset, create_fake_random_dataset, \
+from data.preprocessor import create_toy_dataset, create_fake_random_dataset, \
     create_fake_ins_after_del_dataset
 from query import CountQuery
 from node import NaiveNode, RestartNode
@@ -160,24 +160,24 @@ if __name__ == "__main__":
     create_fake_ins_after_del_dataset(num_ins=n_ins, num_repeats=n_repeats)
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    dataset = Dataset.load_from_path(f"../datasets/fake_ins_after_del_dataset_{n_ins}_{n_repeats}.csv",
-                                     domain_path=f"../datasets/fake_ins_after_del_dataset_{n_ins}_{n_repeats}_domain"
+    dataset = Dataset.load_from_path(f"../data/fake_ins_after_del_dataset_{n_ins}_{n_repeats}.csv",
+                                     domain_path=f"../data/fake_ins_after_del_dataset_{n_ins}_{n_repeats}_domain"
                                                  f".json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int)
-    dataset.save_to_path(f"../datasets/fake_ins_after_del_dataset_{n_ins}_{n_repeats}_batched_{time_int_str}.csv")
+    dataset.save_to_path(f"../data/fake_ins_after_del_dataset_{n_ins}_{n_repeats}_batched_{time_int_str}.csv")
 
     # create_toy_dataset()
     # time_int = pd.DateOffset(days=1)
-    # dataset = Dataset.load_from_path("../datasets/toy_dataset.csv",
-    #                                  domain_path="../datasets/toy_dataset_domain.csv",
+    # dataset = Dataset.load_from_path("../data/toy_dataset.csv",
+    #                                  domain_path="../data/toy_dataset_domain.csv",
     #                                  id_col="Person ID",
     #                                  insertion_time_col="Insertion Time",
     #                                  deletion_time_col="Deletion Time",
     #                                  time_interval=time_int)
-    # dataset.save_to_path("../datasets/toy_dataset_batched_1day.csv")
+    # dataset.save_to_path("../data/toy_dataset_batched_1day.csv")
 
     query_type = "count"
     epsilon = 10.0
