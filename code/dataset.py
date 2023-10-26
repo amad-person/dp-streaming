@@ -107,41 +107,50 @@ class Dataset:
         return self.domain
 
     def get_hist_repr(self, ids):
-        reduced_df = self.select_rows_from_ids(ids)
+        reduced_df = self.select_rows_from_ids(ids).drop(columns=[self.id_col,
+                                                                  self.insertion_time_col, self.deletion_time_col,
+                                                                  "insertion_batch", "deletion_batch"])
 
-        df_bins = []
-        for feature in self.domain.keys():
-            feature_domain = self.domain[feature]
-            min_feature_value = 0
-            if isinstance(feature_domain, int):
-                max_feature_value = feature_domain - 1
-            else:
-                max_feature_value = len(feature_domain) - 1
-            bins = list(range(max_feature_value - min_feature_value + 2))
-            df_bins.append(bins)
-        df_arr = reduced_df.drop(columns=[self.id_col, self.insertion_time_col, self.deletion_time_col,
-                                 "insertion_batch", "deletion_batch"]).to_numpy()
-        df_hist, df_hist_edges = np.histogramdd(df_arr, bins=df_bins)
-
-        # test histogram representation
-        query_for_df = ""
-        for idx, feature in enumerate(self.domain.keys()):
-            query_for_df += f"`{feature}` == 0"
-            if idx != (len(self.domain.keys()) - 1):
-                query_for_df += " & "
-        assert df_hist.flatten()[0] == reduced_df.query(query_for_df).shape[0]
-
-        return df_hist, df_hist_edges
-
-    def get_synthetic_hist_shape(self):
-        shape = []
+        # convert all columns to one-hot encoding
+        reduced_df[reduced_df.columns] = reduced_df[reduced_df.columns].astype('category')
         for feature in self.domain.keys():
             feature_domain = self.domain[feature]
             if isinstance(feature_domain, int):
-                shape.append(feature_domain)
+                num_categories = feature_domain
             else:
-                shape.append(len(feature_domain))
-        return shape
+                num_categories = len(feature_domain)
+            # to account for missing categories in the dataset, we explicitly set all possible ones for the feature
+            reduced_df[feature] = reduced_df[feature].cat.set_categories(range(num_categories))
+        reduced_df_ohe_arr = pd.get_dummies(reduced_df, dtype=int).to_numpy()  # also convert to numpy array
+
+        # compute histogram
+        hist_repr_dim = self.get_hist_repr_dim()
+        hist_repr = [0.0] * (2 ** hist_repr_dim)
+        for row_idx in range(reduced_df_ohe_arr.shape[0]):  # iterate over all records in the dataset
+            x = reduced_df_ohe_arr[row_idx]  # get current record
+
+            # find bin corresponding to features for the record
+            num = 0
+            for dim_idx in range(hist_repr_dim):
+                num += int(x[hist_repr_dim - dim_idx - 1]) * (2 ** dim_idx)
+
+            # update count
+            hist_repr[num] += 1.0
+        hist_repr = np.array(hist_repr)
+        hist_repr /= hist_repr.sum()  # normalize histogram
+
+        return hist_repr
+
+    def get_hist_repr_dim(self):
+        # dim = sum of all feature domain sizes = columns in one-hot encoded dataset
+        dim = 0
+        for feature in self.domain.keys():
+            feature_domain = self.domain[feature]
+            if isinstance(feature_domain, int):
+                dim += feature_domain
+            else:
+                dim += len(feature_domain)
+        return dim
 
 
 # Testing
@@ -165,16 +174,16 @@ if __name__ == "__main__":
 
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    adult_dataset = Dataset.load_from_path("../data/adult_reduced.csv",
-                                           domain_path="../data/adult_reduced_domain.json",
+    adult_dataset = Dataset.load_from_path("../data/adult_small.csv",
+                                           domain_path="../data/adult_small_domain.json",
                                            id_col="Person ID",
                                            insertion_time_col="Insertion Time",
                                            deletion_time_col="Deletion Time",
                                            time_interval=time_int)
-    adult_dataset.save_to_path(f"../data/adult_reduced_batched_{time_int_str}.csv")
+    adult_dataset.save_to_path(f"../data/adult_small_batched_{time_int_str}.csv")
     for i, (ins_ids, del_ids) in enumerate(adult_dataset.get_batches()):
         print("Batch:", i)
         print("Insertions:", ins_ids)
         print("Deletions", del_ids)
 
-    hist, edges = adult_dataset.get_hist_repr(ids=adult_dataset.df[adult_dataset.id_col])
+    hist = adult_dataset.get_hist_repr(ids=adult_dataset.df[adult_dataset.id_col])

@@ -157,12 +157,12 @@ class BinaryRestartsQueryEngine(QueryEngine):
 if __name__ == "__main__":
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    dataset = Dataset.load_from_path("../data/adult_reduced.csv",
-                                           domain_path="../data/adult_reduced_domain.json",
-                                           id_col="Person ID",
-                                           insertion_time_col="Insertion Time",
-                                           deletion_time_col="Deletion Time",
-                                           time_interval=time_int)
+    dataset = Dataset.load_from_path("../data/adult_medium.csv",
+                                     domain_path="../data/adult_medium_domain.json",
+                                     id_col="Person ID",
+                                     insertion_time_col="Insertion Time",
+                                     deletion_time_col="Deletion Time",
+                                     time_interval=time_int)
     dataset.save_to_path(f"../data/adult_reduced_batched_{time_int_str}.csv")
 
     query_type = "pmw"

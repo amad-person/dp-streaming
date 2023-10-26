@@ -145,8 +145,7 @@ class PmwQuery(Query):
         self.workload_hist = workload_hist
 
     def _get_true_hist_answers(self, ids):
-        true_hist, _ = self.dataset.get_hist_repr(ids)
-        true_hist /= true_hist.flatten().sum()  # normalize
+        true_hist = self.dataset.get_hist_repr(ids)
 
         # compute answers on the true dataset
         true_hist_answers = []
@@ -179,7 +178,7 @@ class PmwQuery(Query):
         true_hist_answers = self._get_true_hist_answers(ids)
 
         # initialize histogram as a uniform distribution
-        synthetic_hist = np.ones(self.dataset.get_synthetic_hist_shape(),  # dimensions = product of domains
+        synthetic_hist = np.ones(self.dataset.get_hist_repr_dim(),  # dimensions = product of domains
                                  dtype=np.float32)
         synthetic_hist /= synthetic_hist.sum()  # normalize
 
@@ -219,7 +218,7 @@ class PmwQuery(Query):
                                   size=num_records,
                                   p=flattened_synthetic_hist)
         data = []
-        dom_sizes = self.dataset.get_synthetic_hist_shape()
+        dom_sizes = self.dataset.get_hist_repr_dim()
         for idx in samples:
             row = _reverse_hist_index(idx, dom_sizes)
             data.append(row)
