@@ -94,7 +94,7 @@ class PmwQuery(Query):
         self.dataset = dataset
         self.workload = workload
         self.workload_hist = None
-        self.create_workload_hist(workload)
+        self._create_workload_hist(workload)
         self.sensitivity = sensitivity
         self.epsilon = epsilon
         self.delta = delta
@@ -104,20 +104,6 @@ class PmwQuery(Query):
         else:
             self.rng = rng
         self.synthetic_dataset = None
-
-    def create_workload_hist(self, workload):
-        feat_names = list(self.dataset.get_domain().keys())
-        num_feats = len(feat_names)
-        workload_hist = []
-        for predicate in workload:
-            # predicate is a str in the format of a pandas query, e.g., feat1 == val & feat2 == val
-            conditions = predicate.split(" & ")
-            predicate_hist = [None] * num_feats
-            for cond in conditions:
-                feat, val = cond.split(" == ")
-                predicate_hist[feat_names.index(feat)] = val  # TODO: add check for valid predicates
-            workload_hist.append(tuple(predicate_hist))
-        self.workload_hist = workload_hist
 
     def set_privacy_parameters(self, epsilon, delta=None):
         self.epsilon = epsilon
@@ -136,7 +122,7 @@ class PmwQuery(Query):
 
     def get_private_answer(self, ids):
         if ids is not None:
-            self.mwem(ids)  # learn histogram using MWEM and generate synthetic dataset
+            self._mwem(ids)  # learn histogram using MWEM and generate synthetic dataset
             answers = []
             for predicate in self.workload:
                 answers.append(self.synthetic_dataset.query(predicate).shape[0])  # answers from synthetic dataset
@@ -144,15 +130,38 @@ class PmwQuery(Query):
         else:
             return [0] * len(self.workload)
 
-    def select_predicate_using_exponential_mech(self, ids, synthetic_hist, epsilon):
-        true_answers = np.array(self.get_true_answer(ids))
+    def _create_workload_hist(self, workload):
+        feat_names = list(self.dataset.get_domain().keys())
+        num_feats = len(feat_names)
+        workload_hist = []
+        for predicate in workload:
+            # predicate is a str in the format of a pandas query, e.g., feat1 == val & feat2 == val
+            conditions = predicate.split(" & ")
+            predicate_hist = [None] * num_feats
+            for cond in conditions:
+                feat, val = cond.split(" == ")
+                predicate_hist[feat_names.index(feat)] = val  # TODO: add check for valid predicates
+            workload_hist.append(tuple(predicate_hist))
+        self.workload_hist = workload_hist
+
+    def _get_true_hist_answers(self, ids):
+        true_hist, _ = self.dataset.get_hist_repr(ids)
+        true_hist /= true_hist.flatten().sum()  # normalize
+
+        # compute answers on the true dataset
+        true_hist_answers = []
+        for predicate_hist in self.workload_hist:
+            true_hist_answers.append(true_hist[predicate_hist].sum())
+        return true_hist_answers
+
+    def _select_predicate_using_exponential_mech(self, true_hist_answers, synthetic_hist, epsilon):
         errors = [0] * len(self.workload)
         for idx, predicate_hist in enumerate(self.workload_hist):
-            synthetic_answer = synthetic_hist[predicate_hist].sum()
-            errors[idx] = epsilon * (np.abs(true_answers[idx] - synthetic_answer) / 2.0)
+            synthetic_hist_answer = synthetic_hist[predicate_hist].sum()
+            errors[idx] = epsilon * (np.abs(true_hist_answers[idx] - synthetic_hist_answer) / 2.0)
         return 0
 
-    def update_synthetic_hist(self, synthetic_hist, measurements):
+    def _update_synthetic_hist(self, synthetic_hist, measurements):
         for _ in range(50):
             for pred_idx in measurements.keys():
                 error = measurements[pred_idx] - synthetic_hist[self.workload_hist[pred_idx]].sum()
@@ -160,8 +169,8 @@ class PmwQuery(Query):
                 synthetic_hist /= synthetic_hist.flatten().sum()  # re-normalize
         return synthetic_hist
 
-    def mwem(self, ids):
-        true_answers = np.array(self.get_true_answer(ids))
+    def _mwem(self, ids):
+        true_hist_answers = self._get_true_hist_answers(ids)
 
         # initialize histogram as a uniform distribution
         synthetic_hist = np.ones(self.dataset.get_synthetic_hist_shape(),  # dimensions = product of domains
@@ -171,24 +180,25 @@ class PmwQuery(Query):
         measurements = {}  # dict of query idx -> answer on synthetic dataset
         for iteration in range(self.iterations):
             epsilon_for_exponential = (self.epsilon / (2 * self.iterations))
-            selected_pred_idx = self.select_predicate_using_exponential_mech(ids, synthetic_hist,
-                                                                             epsilon_for_exponential)
+            selected_pred_idx = self._select_predicate_using_exponential_mech(true_hist_answers,
+                                                                              synthetic_hist,
+                                                                              epsilon_for_exponential)
             while selected_pred_idx in measurements:
-                selected_pred_idx = self.select_predicate_using_exponential_mech(ids, synthetic_hist,
-                                                                                 epsilon_for_exponential)
+                selected_pred_idx = self._select_predicate_using_exponential_mech(ids, synthetic_hist,
+                                                                                  epsilon_for_exponential)
 
             # noisy ground truth answer for selected predicate
-            measurements[selected_pred_idx] = (true_answers[selected_pred_idx] +
+            measurements[selected_pred_idx] = (true_hist_answers[selected_pred_idx] +
                                                self.rng.laplace(loc=0, scale=(2 * self.iterations / self.epsilon)))
 
             # update weights of histogram using noisy ground truth answers of all previously selected predicates
-            synthetic_hist = self.update_synthetic_hist(synthetic_hist, measurements)
+            synthetic_hist = self._update_synthetic_hist(synthetic_hist, measurements)
 
         # create a tabular dataset from the histogram
-        self.synthetic_dataset = self.create_synthetic_dataset(synthetic_hist, num_records=len(ids))
+        self.synthetic_dataset = self._create_synthetic_dataset(synthetic_hist, num_records=len(ids))
 
     # TODO: fill this out
-    def create_synthetic_dataset(self, synthetic_hist, num_records):
+    def _create_synthetic_dataset(self, synthetic_hist, num_records):
         print(self.synthetic_dataset)
         return pd.DataFrame({})
 

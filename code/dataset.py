@@ -25,8 +25,6 @@ class Dataset:
         self.deletion_time_col = deletion_time_col
         self.time_interval = time_interval
         self.num_batches = self.create_batches()
-        self.df_hist = None
-        self.df_hist_edges = None
 
     @staticmethod
     def load_from_path(path, domain_path, id_col, insertion_time_col, deletion_time_col, time_interval):
@@ -108,7 +106,9 @@ class Dataset:
     def get_domain(self):
         return self.domain
 
-    def get_hist_repr(self):
+    def get_hist_repr(self, ids):
+        reduced_df = self.select_rows_from_ids(ids)
+
         df_bins = []
         for feature in self.domain.keys():
             feature_domain = self.domain[feature]
@@ -119,8 +119,8 @@ class Dataset:
                 max_feature_value = len(feature_domain) - 1
             bins = list(range(max_feature_value - min_feature_value + 2))
             df_bins.append(bins)
-        df_arr = self.df.drop(columns=[self.id_col, self.insertion_time_col, self.deletion_time_col,
-                                       "insertion_batch", "deletion_batch"]).to_numpy()
+        df_arr = reduced_df.drop(columns=[self.id_col, self.insertion_time_col, self.deletion_time_col,
+                                 "insertion_batch", "deletion_batch"]).to_numpy()
         df_hist, df_hist_edges = np.histogramdd(df_arr, bins=df_bins)
 
         # test histogram representation
@@ -130,9 +130,6 @@ class Dataset:
             if idx != (len(self.domain.keys()) - 1):
                 query_for_df += " & "
         assert df_hist.flatten()[0] == self.df.query(query_for_df).shape[0]
-
-        self.df_hist = df_hist
-        self.df_hist_edges = df_hist_edges
 
         return df_hist, df_hist_edges
 
