@@ -1,13 +1,9 @@
 # Differential Privacy for Streaming Data
 
 ## Problem Statement
-- Supported operations on a streaming database: insertion, deletion, no op.
-- Batch operations per day, i.e., release answers at the end of each day.
-- Distribute the desired epsilon, delta over the following mechanisms:
-  - Count number of deletions to choose which mechanism to use:
-    - Run naive binary mechanism on deletions to answer linear queries with PMW.
-    - Run binary mechanism with restarts to answer linear queries with PMW.
-  - Count number of deletions per node.
+- Given a streaming database and a set of queries, we want to periodically release answers privately on this database.
+- The streaming database is updated over time. In each update, the following operations are possible: insert a new record, delete an existing record, no operation.
+- Operations are batched per day, i.e., we will release answers at the end of each day.
 
 ## Design
 
@@ -20,7 +16,7 @@ A query object encapsulates the desired privacy parameters, sensitivity, and the
 The following queries are currently supported:
 1. Count Query: Return the number of records in the dataset.
 1. Predicate Query: Return the number of records in the dataset that satisfy the specified predicate (e.g., number of people who are 25 years old).
-1. PMW Query (TBA): Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set.
+1. PMW Query (In Progress): Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set.
 
 You can define your own queries by extending the base `Query` class. Your class should contain the following methods:
 1. `set_privacy_parameters()`: Update the privacy parameters (epsilon, delta) for the query. This is useful when you want to change the privacy parameters specified during query initialization. 
