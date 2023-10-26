@@ -45,3 +45,9 @@ A node is a unit of the tree that represents the dataset stream.
 The following nodes are currently supported: 
 1. NaiveNode: A simple node that computes the query on the IDs added to the node on initialization.
 1. RestartNode: A node that tracks how many IDs added to the node on initialization are deleted, and refreshes the node once there are enough deletions.
+
+## Demo
+
+![ans_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Fans_vs_batch.png)
+
+![avg_error_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Favg_error_vs_batch.png)
