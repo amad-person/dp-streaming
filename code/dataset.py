@@ -25,6 +25,7 @@ class Dataset:
         self.deletion_time_col = deletion_time_col
         self.time_interval = time_interval
         self.num_batches = self.create_batches()
+        self.hist_repr_columns = None
 
     @staticmethod
     def load_from_path(path, domain_path, id_col, insertion_time_col, deletion_time_col, time_interval):
@@ -121,7 +122,12 @@ class Dataset:
                 num_categories = len(feature_domain)
             # to account for missing categories in the dataset, we explicitly set all possible ones for the feature
             reduced_df[feature] = reduced_df[feature].cat.set_categories(range(num_categories))
-        reduced_df_ohe_arr = pd.get_dummies(reduced_df, dtype=int).to_numpy()  # also convert to numpy array
+        reduced_df_ohe = pd.get_dummies(reduced_df, dtype=int)
+
+        # save column names
+        self.hist_repr_columns = reduced_df_ohe.columns
+
+        reduced_df_ohe_arr = reduced_df_ohe.to_numpy()  # convert to numpy array
 
         # compute histogram
         hist_repr_dim = self.get_hist_repr_dim()
@@ -140,6 +146,9 @@ class Dataset:
         hist_repr /= hist_repr.sum()  # normalize histogram
 
         return hist_repr
+
+    def get_hist_repr_columns(self):
+        return self.hist_repr_columns
 
     def get_hist_repr_dim(self):
         # dim = sum of all feature domain sizes = columns in one-hot encoded dataset
