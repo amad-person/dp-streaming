@@ -1,0 +1,19 @@
+{
+  "age": 2,
+  "race": [
+    "White",
+    "Asian-Pac-Islander",
+    "Amer-Indian-Eskimo",
+    "Other",
+    "Black"
+  ],
+  "sex": [
+    "Female",
+    "Male"
+  ],
+  "hours-per-week": 2,
+  "income": [
+    "<=50K",
+    ">50K"
+  ]
+}

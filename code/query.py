@@ -268,4 +268,4 @@ class PmwQuery(Query):
         if hist_repr_type == "ohe":
             return utils.ohe_to_dataset(encoded_df=synthetic_df_encoded)
         elif hist_repr_type == "binarized":
-            return utils.binarized_to_dataset(encoded_df=synthetic_df_encoded)
+            return utils.binarized_to_dataset(encoded_df=synthetic_df_encoded, domain=self.dataset.get_domain())

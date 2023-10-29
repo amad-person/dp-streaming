@@ -1,0 +1,19 @@
+{
+  "age": "Binarized",
+  "race": [
+    "White",
+    "Asian-Pac-Islander",
+    "Amer-Indian-Eskimo",
+    "Other",
+    "Black"
+  ],
+  "sex": [
+    "Female",
+    "Male"
+  ],
+  "hours-per-week": "Binarized",
+  "income": [
+    "<=50K",
+    ">50K"
+  ]
+}

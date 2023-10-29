@@ -1,0 +1,45 @@
+{
+  "age": 8,
+  "workclass": [
+    "Private",
+    "Self-emp-not-inc",
+    "Self-emp-inc",
+    "Federal-gov",
+    "Local-gov",
+    "State-gov",
+    "Without-pay",
+    "Never-worked"
+  ],
+  "occupation": [
+    "Tech-support",
+    "Craft-repair",
+    "Other-service",
+    "Sales",
+    "Exec-managerial",
+    "Prof-specialty",
+    "Handlers-cleaners",
+    "Machine-op-inspct",
+    "Adm-clerical",
+    "Farming-fishing",
+    "Transport-moving",
+    "Priv-house-serv",
+    "Protective-serv",
+    "Armed-Forces"
+  ],
+  "race": [
+    "White",
+    "Asian-Pac-Islander",
+    "Amer-Indian-Eskimo",
+    "Other",
+    "Black"
+  ],
+  "sex": [
+    "Female",
+    "Male"
+  ],
+  "hours-per-week": 10,
+  "income": [
+    "<=50K",
+    ">50K"
+  ]
+}

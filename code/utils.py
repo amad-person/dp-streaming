@@ -40,11 +40,38 @@ def ohe_to_dataset(encoded_df):
 
 
 def dataset_to_binarized(df, domain):
-    pass
+    encoded_df = pd.DataFrame({})
+    for feature in domain.keys():
+        feature_domain = domain[feature]
+        if feature_domain == "Binarized":
+            r = df[feature].max() - df[feature].min()  # range for continuous variable
+            dim = int(np.ceil(np.log2(r)))  # length of binarized representation
+        else:
+            num_categories = len(feature_domain)  # number of categories for discrete variable
+            dim = int(np.ceil(np.log2(num_categories)))  # length of binarized representation
+
+        # create binarized representation
+        # source: https://stackoverflow.com/a/22227898
+        original_column = df[feature].to_numpy()
+        binarized_columns = [f"{feature}_{idx}" for idx in range(dim)]
+        encoded_df[binarized_columns] = pd.DataFrame(
+            (np.fliplr(original_column[:, None] & (1 << np.arange(dim))) > 0).astype(int)
+        )
+    return encoded_df
 
 
-def binarized_to_dataset(encoded_df):
-    pass
+def binarized_to_dataset(encoded_df, domain):
+    df = pd.DataFrame({})
+    for feature in domain.keys():
+        # get binarized columns for the feature
+        binarized_columns = [col for col in encoded_df.columns if col.startswith(f"{feature}_")]
+        dim = len(binarized_columns)
+
+        # decode binarized representation
+        # source: https://stackoverflow.com/a/15506055
+        binarized_arr = encoded_df[binarized_columns].to_numpy()
+        df[feature] = binarized_arr.dot(1 << np.arange(dim - 1, -1, -1)).astype(int)
+    return df
 
 
 # source: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl/blob/master/src/gosper.jl
@@ -123,3 +150,20 @@ def get_parity_queries(dim, k):
     parities = sorted(parities)
     queries = [hadamard_basis_vector(parity, dim) for parity in parities]
     return np.array(queries)
+
+
+# Testing
+if __name__ == "__main__":
+    dummy_df = pd.DataFrame({
+        "age": [2, 15, 19, 25, 20, 34, 18, 55],
+        "sex": [1, 0, 1, 1, 0, 1, 0, 0]
+    })
+    dummy_domain = {
+        "age": "Binarized",
+        "sex": ["Male", "Female"]
+    }
+
+    enc_df = dataset_to_binarized(df=dummy_df, domain=dummy_domain)
+    dec_df = binarized_to_dataset(enc_df, domain=dummy_domain)
+
+    assert np.all(dummy_df.to_numpy() == dec_df.to_numpy())

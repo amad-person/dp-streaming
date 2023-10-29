@@ -118,7 +118,88 @@ def get_random_ins_and_del_times(num_rows, start_date, end_date, datetime_dtype,
     return insertion_times, deletion_times
 
 
-def create_adult_small_ohe_dataset(path, domain_path):
+def get_config_for_adult_dataset(domain, size, enc_type):
+    if size == "small":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "age": "categorical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "categorical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+        elif enc_type == "binarized":
+            return {
+                "sdtypes": {
+                    "age": "numerical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "numerical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+    elif size == "medium":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "age": "categorical",
+                    "workclass": "categorical",
+                    "occupation": "categorical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "categorical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "workclass": OrderedLabelEncoder(order=domain["workclass"]),
+                    "occupation": OrderedLabelEncoder(order=domain["occupation"]),
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+        elif enc_type == "binarized":
+            return {
+                "sdtypes": {
+                    "age": "numerical",
+                    "workclass": "categorical",
+                    "occupation": "categorical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "numerical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "workclass": OrderedLabelEncoder(order=domain["workclass"]),
+                    "occupation": OrderedLabelEncoder(order=domain["occupation"]),
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+
+
+def create_adult_dataset(path, domain_path, size, enc_type):
     # read dataset and domain
     df = pd.read_csv(path, na_values='?')
     with open(domain_path, "r") as domain_file:
@@ -131,28 +212,15 @@ def create_adult_small_ohe_dataset(path, domain_path):
     # remove rows if any of the features are NaN / missing
     df = df.dropna(how="any")
 
-    # make continuous columns categorical (integers)
-    df["age"] = pd.cut(df["age"], bins=domain["age"], ordered=True, labels=False)
-    df["hours-per-week"] = pd.cut(df["hours-per-week"], bins=domain["hours-per-week"], ordered=True, labels=False)
+    if enc_type == "ohe":
+        # make continuous columns categorical (integers)
+        df["age"] = pd.cut(df["age"], bins=domain["age"], ordered=True, labels=False)
+        df["hours-per-week"] = pd.cut(df["hours-per-week"], bins=domain["hours-per-week"], ordered=True, labels=False)
 
-    # encode categorical columns as integers
+    # get RDT transformer config based on 'size' and 'enc_type'
+    ht_config = get_config_for_adult_dataset(domain, size, enc_type)
     ht = HyperTransformer()
-    ht.set_config(config={
-        "sdtypes": {
-            "age": "categorical",
-            "race": "categorical",
-            "sex": "categorical",
-            "hours-per-week": "categorical",
-            "income": "categorical"
-        },
-        "transformers": {
-            "age": None,
-            "race": OrderedLabelEncoder(order=domain["race"]),
-            "sex": OrderedLabelEncoder(order=domain["sex"]),
-            "hours-per-week": None,
-            "income": OrderedLabelEncoder(order=domain["income"])
-        }
-    })
+    ht.set_config(config=ht_config)
     df = ht.fit_transform(df)
 
     # add random insertion and deletion times
@@ -167,66 +235,17 @@ def create_adult_small_ohe_dataset(path, domain_path):
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./adult_small_ohe.csv", index_label="Person ID")
-
-
-def create_adult_medium_ohe_dataset(path, domain_path):
-    # read dataset and domain
-    df = pd.read_csv(path, na_values='?')
-    with open(domain_path, "r") as domain_file:
-        domain = json.load(domain_file)
-
-    # drop columns not in the domain
-    columns_to_keep = list(domain.keys())
-    df = df[columns_to_keep]
-
-    # remove rows if any of the features are NaN / missing
-    df = df.dropna(how="any")
-
-    # make continuous columns categorical (integers)
-    df["age"] = pd.cut(df["age"], bins=domain["age"], ordered=True, labels=False)
-    df["hours-per-week"] = pd.cut(df["hours-per-week"], bins=domain["hours-per-week"], ordered=True, labels=False)
-
-    # encode categorical columns as integers
-    ht = HyperTransformer()
-    ht.set_config(config={
-        "sdtypes": {
-            "age": "categorical",
-            "workclass": "categorical",
-            "occupation": "categorical",
-            "race": "categorical",
-            "sex": "categorical",
-            "hours-per-week": "categorical",
-            "income": "categorical"
-        },
-        "transformers": {
-            "age": None,
-            "workclass": OrderedLabelEncoder(order=domain["workclass"]),
-            "occupation": OrderedLabelEncoder(order=domain["occupation"]),
-            "race": OrderedLabelEncoder(order=domain["race"]),
-            "sex": OrderedLabelEncoder(order=domain["sex"]),
-            "hours-per-week": None,
-            "income": OrderedLabelEncoder(order=domain["income"])
-        }
-    })
-    df = ht.fit_transform(df)
-
-    # add random insertion and deletion times
-    start_date = datetime(year=2023, month=1, day=1)
-    end_date = datetime(year=2023, month=12, day=31)
-    insertion_times, deletion_times = get_random_ins_and_del_times(num_rows=df.shape[0],
-                                                                   start_date=start_date,
-                                                                   end_date=end_date,
-                                                                   datetime_dtype="datetime64[D]",
-                                                                   timedelta_dtype="timedelta64[D]")
-    df["Insertion Time"] = insertion_times
-    df["Deletion Time"] = deletion_times
-
-    # save processed dataset
-    df.to_csv(f"./adult_medium_ohe.csv", index_label="Person ID")
+    df.to_csv(f"./adult_{size}_{enc_type}.csv", index_label="Person ID")
 
 
 if __name__ == "__main__":
     adult_dataset_path = f"./adult.csv"
-    adult_dataset_domain_path = f"./adult_small_ohe_domain.json"
-    create_adult_small_ohe_dataset(path=adult_dataset_path, domain_path=adult_dataset_domain_path)
+
+    adult_size = "medium"
+    encoding_type = "binarized"
+    adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+
+    create_adult_dataset(path=adult_dataset_path,
+                         domain_path=adult_dataset_domain_path,
+                         size=adult_size,
+                         enc_type=encoding_type)

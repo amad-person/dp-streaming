@@ -173,10 +173,10 @@ class Dataset:
                 feature_domain = self.domain[feature]
                 if isinstance(feature_domain, str):
                     r = self.df[feature].max() - self.df[feature].min()  # range for continuous variable
-                    dim += np.ceil(np.log2(r))  # length of binarized representation
+                    dim += int(np.ceil(np.log2(r)))  # length of binarized representation
                 else:
                     num_categories = len(feature_domain)  # number of categories for discrete variable
-                    dim += np.ceil(np.log2(num_categories))  # length of binarized representation
+                    dim += int(np.ceil(np.log2(num_categories)))  # length of binarized representation
         return dim
 
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     dataset_name = "adult_small"
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    pmw_encoding_type = "ohe"
+    pmw_encoding_type = "binarized"
     dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
                                      domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
                                      id_col="Person ID",
@@ -211,10 +211,10 @@ if __name__ == "__main__":
                                      time_interval=time_int,
                                      hist_repr_type=pmw_encoding_type)
     dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
-    for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
-        print("Batch:", i)
-        print("Insertions:", ins_ids)
-        print("Deletions", del_ids)
+    # for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
+    #     print("Batch:", i)
+    #     print("Insertions:", ins_ids)
+    #     print("Deletions", del_ids)
 
     hist = dataset.get_hist_repr(ids=dataset.df[dataset.id_col])
     print(hist)
