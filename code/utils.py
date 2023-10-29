@@ -90,14 +90,11 @@ def hadamard_basis_vector(index, dim):
 
 # source: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl/blob/master/src/parities.jl
 def get_parity_queries(dim, k):
-    print("Generating parity queries", dim, k)
     parities = set()
     parities.add(0)
     for seq in gosper(dim, k):
         for alpha in binary(dim, seq):
             parities.add(alpha + 1)
     parities = sorted(parities)
-    print("Parities to hadamard", parities)
     queries = [hadamard_basis_vector(parity, dim) for parity in parities]
-    print("Queries final shape", np.array(queries).shape)
     return np.array(queries)

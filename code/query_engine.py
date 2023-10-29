@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
     query_type = "pmw"
     epsilon = 10.0
-    delta = 10**-5
+    delta = None
     privstr = "eps" + str(epsilon).replace(".", "_")
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
