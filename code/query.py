@@ -183,7 +183,7 @@ class PmwQuery(Query):
 
     @staticmethod
     def _evaluate_workload_on_hist(workload, histogram):
-        return np.dot(workload.T @ workload, histogram)
+        return np.dot(workload, histogram)
 
     def _get_true_hist_answers(self, ids):
         true_hist = self.dataset.get_hist_repr(ids)
@@ -209,7 +209,7 @@ class PmwQuery(Query):
         true_hist_answers = self._get_true_hist_answers(ids)
 
         # initialize histogram as a uniform distribution
-        synthetic_hist = np.ones(shape=self.dataset.get_hist_repr_dim(),  # dimensions = product of domains
+        synthetic_hist = np.ones(shape=2 ** self.dataset.get_hist_repr_dim(),  # dimensions = product of domains
                                  dtype=np.float32)
         synthetic_hist /= synthetic_hist.sum()  # normalize
 
@@ -245,14 +245,21 @@ class PmwQuery(Query):
         self.synthetic_dataset = self._create_synthetic_dataset(synthetic_hist, num_records=len(ids))
 
     def _create_synthetic_dataset(self, synthetic_hist, num_records):
-        flattened_synthetic_hist = synthetic_hist.flatten()
-        samples = self.rng.choice(a=np.array(range(len(flattened_synthetic_hist))),
+        # sample 'num_records' rows for the synthetic dataset
+        # each row is a record type from the domain 2^dim
+        samples = self.rng.choice(a=np.array(range(len(synthetic_hist))),
                                   size=num_records,
-                                  p=flattened_synthetic_hist)
+                                  p=synthetic_hist)
+
+        # convert record type to actual one-hot-encoded row
         dim = self.dataset.get_hist_repr_dim()
         data = np.zeros(shape=(num_records, dim))
-        for idx, sample in enumerate(samples):
-            data[idx] = np.flip(np.base_repr(sample, base=2, padding=dim), axis=0)
+        for i in range(num_records):
+            binary_str = format(samples[i], f'0{dim}b')
+            data[i] = [int(bit) for bit in binary_str]
+
+        # convert one-hot-encoded dataset to original
         synthetic_df_ohe = pd.DataFrame(data, columns=self.dataset.get_hist_repr_columns())
+        # TODO: this needs a more graceful failure method when a variable has more than one 1 in its OHE.
         synthetic_df = pd.from_dummies(synthetic_df_ohe)
         return synthetic_df

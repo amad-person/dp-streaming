@@ -190,14 +190,14 @@ if __name__ == "__main__":
         seed = org_seed + run
         rng = np.random.default_rng(seed)
 
-        nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=10, rng=rng)
+        nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
         nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=1)
         print("Naive Binary", nb_true_ans, nb_private_ans)
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
         np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
-        br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=10, rng=rng)
+        br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
         br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=1)
         print("Binary Restarts", br_true_ans, br_private_ans)
