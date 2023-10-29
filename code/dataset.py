@@ -184,7 +184,7 @@ if __name__ == "__main__":
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
     adult_dataset = Dataset.load_from_path("../data/adult_small.csv",
-                                           domain_path="../data/adult_small_domain.json",
+                                           domain_path="../data/adult_small_ohe_domain.json",
                                            id_col="Person ID",
                                            insertion_time_col="Insertion Time",
                                            deletion_time_col="Deletion Time",
