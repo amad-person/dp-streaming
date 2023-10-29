@@ -30,10 +30,13 @@ class NaiveBinaryQueryEngine(QueryEngine):
         self.naive_binary_insertions_map = {}  # stream to track insertions
         self.naive_binary_deletions_map = {}  # stream to track deletions
 
-    def run(self):
+    def run(self, num_batches=None):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
+            if i == num_batches:
+                return
+
             node_i = i + 1
 
             # start building new tree
@@ -100,10 +103,13 @@ class BinaryRestartsQueryEngine(QueryEngine):
         self.delta = delta
         self.binary_restarts_map = {}
 
-    def run(self):
+    def run(self, num_batches=None):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
+            if i == num_batches:
+                return
+
             node_i = i + 1
 
             # start building new tree
@@ -157,13 +163,13 @@ class BinaryRestartsQueryEngine(QueryEngine):
 if __name__ == "__main__":
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    dataset = Dataset.load_from_path("../data/adult_medium.csv",
-                                     domain_path="../data/adult_medium_domain.json",
+    dataset = Dataset.load_from_path("../data/adult_small.csv",
+                                     domain_path="../data/adult_small_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int)
-    dataset.save_to_path(f"../data/adult_reduced_batched_{time_int_str}.csv")
+    dataset.save_to_path(f"../data/adult_small_batched_{time_int_str}.csv")
 
     query_type = "pmw"
     epsilon = 10.0
@@ -177,23 +183,23 @@ if __name__ == "__main__":
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
 
-    workload = ['age == 0 & race == 1', 'sex == 0']
+    predicates = ['age == 0 & race == 1', 'sex == 0']
 
     # run mechanisms on the same dataset NUM_RUNS number of times
     for run in range(num_runs):
         seed = org_seed + run
         rng = np.random.default_rng(seed)
 
-        nb_query = PmwQuery(dataset=dataset, workload=workload, iterations=5, rng=rng)
+        nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=10, rng=rng)
         naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
-        nb_true_ans, nb_private_ans = naive_binary_query_engine.run()
+        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=1)
         print("Naive Binary", nb_true_ans, nb_private_ans)
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
         np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
-        br_query = PmwQuery(dataset=dataset, workload=workload, iterations=5, rng=rng)
+        br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=10, rng=rng)
         binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
-        br_true_ans, br_private_ans = binary_restarts_query_engine.run()
+        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=1)
         print("Binary Restarts", br_true_ans, br_private_ans)
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
         np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))

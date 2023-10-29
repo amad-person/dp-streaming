@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import random
 
+import utils
+
 class Query(ABC):
     def __init__(self):
         pass
@@ -22,11 +24,14 @@ class Query(ABC):
 
 
 class CountQuery(Query):
+    """
+    Counts the number of records in the specified dataset.
+    """
     def __init__(self, sensitivity=None, epsilon=None, rng=None):
         """
-        :param sensitivity:
-        :param epsilon:
-        :param rng:
+        :param sensitivity: Sensitivity of the query to be used by the Laplace Mechanism.
+        :param epsilon: Privacy budget for the Laplace Mechanism.
+        :param rng: Numpy random generator for experiment reproducibility.
         """
         super().__init__()
         self.sensitivity = sensitivity
@@ -58,13 +63,16 @@ class CountQuery(Query):
 
 
 class PredicateQuery(Query):
+    """
+    Counts the number of records that match a predicate in the specified dataset.
+    """
     def __init__(self, dataset=None, predicate=None, sensitivity=None, epsilon=None, rng=None):
         """
-        :param dataset:
-        :param predicate:
-        :param sensitivity:
-        :param epsilon:
-        :param rng:
+        :param dataset: Dataset to evaluate the predicate query on.
+        :param predicate: Set of conditions that records in the dataset must match.
+        :param sensitivity: Sensitivity of the query to be used by the Laplace Mechanism.
+        :param epsilon: Privacy budget for the Laplace Mechanism.
+        :param rng: Numpy random generator for experiment reproducibility.
         """
         super().__init__()
         self.dataset = dataset
@@ -99,27 +107,36 @@ class PredicateQuery(Query):
 
 
 class PmwQuery(Query):
+    """
+    Generates a synthetic dataset using k-way predicates for the specified dataset, and
+    returns the answers for predicates using the synthetic dataset.
+    """
     def __init__(self, dataset=None, predicates=None, k=None,
                  sensitivity=None, epsilon=None, delta=None,
                  iterations=10, repetitions=10,
                  noisy_max_budget=0.5, rng=None):
         """
-        :param dataset:
-        :param predicates:
-        :param k:
+        :param dataset: Dataset for which a synthetic dataset is generated.
+        :param predicates: Queries that need to be answered using the synthetic dataset. Each predicate is a
+            set of conditions that records in the dataset must match.
+        :param k: Upper bound on the number of conditions a predicate can have.
         :param sensitivity:
-        :param epsilon:
-        :param delta:
-        :param iterations:
-        :param repetitions:
-        :param noisy_max_budget:
-        :param rng:
+        :param epsilon: Privacy budget for Multiplicative Weights Exponential Mechanism (MWEM).
+        :param iterations: Number of times to run MWEM.
+        :param repetitions: Each iteration of MWEM updates the synthetic dataset for "repetitions" number of times.
+        :param noisy_max_budget: Fraction of the privacy budget to be used by the query selection Exponential Mechanism.
+        :param rng: Numpy random generator for experiment reproducibility.
+
+        Reference: Hardt, Moritz, Katrina Ligett, and Frank McSherry. "A simple and practical algorithm for
+            differentially private data release." Advances in neural information processing systems 25 (2012).
+        Code adapted from: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl
         """
         super().__init__()
         self.dataset = dataset
         self.predicates = predicates
+        self.k = k
         self.workload = None
-        self._create_workload(k)
+        self._create_workload()
         self.sensitivity = sensitivity
         self.epsilon = epsilon
         self.delta = delta
@@ -157,10 +174,8 @@ class PmwQuery(Query):
         else:
             return [0] * len(self.predicates)
 
-    # TODO: fill this out
-    def _create_workload(self, k):
-        workload_hist = []
-        self.workload = workload_hist
+    def _create_workload(self):
+        self.workload = utils.get_parity_queries(self.dataset.get_hist_repr_dim(), self.k)
 
     @staticmethod
     def _evaluate_query_on_hist(query, histogram):
@@ -168,7 +183,7 @@ class PmwQuery(Query):
 
     @staticmethod
     def _evaluate_workload_on_hist(workload, histogram):
-        return np.dot(workload @ workload.T, histogram)
+        return np.dot(workload.T @ workload, histogram)
 
     def _get_true_hist_answers(self, ids):
         true_hist = self.dataset.get_hist_repr(ids)
