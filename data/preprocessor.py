@@ -44,20 +44,18 @@ def create_fake_random_dataset(num_rows=10000, path=None, domain_path=None):
 
     :param num_rows: Number of rows in fake dataset.
     :param path: Path of CSV file where the fake dataset will be saved.
+    :param domain_path: Path of JSON file with feature domain information.
     """
     person_ids = list(range(num_rows))
 
     # generate random insertion times for each person
     start_date = datetime(year=2023, month=1, day=1)
     end_date = datetime(year=2023, month=12, day=31)
-    possible_timestamps = np.arange(start_date, end_date, dtype="datetime64[s]")
-    insertion_times = np.random.choice(possible_timestamps, size=num_rows)
-
-    # generate random deletion times for each person (deletion times should be after insertion times)
-    time_deltas = np.array([timedelta(days=np.random.randint(1, 30)) for _ in range(num_rows)],
-                           dtype="timedelta64[s]")
-    deletion_times = insertion_times + time_deltas
-    deletion_times = np.where(deletion_times > end_date, end_date, deletion_times)
+    insertion_times, deletion_times = get_random_ins_and_del_times(num_rows=num_rows,
+                                                                   start_date=start_date,
+                                                                   end_date=end_date,
+                                                                   datetime_dtype="datetime64[s]",
+                                                                   timedelta_dtype="timedelta64[s]")
 
     # save to file
     data_dict = {
@@ -107,7 +105,20 @@ def create_fake_ins_after_del_dataset(num_ins=2 ** 20, num_repeats=6, path=None,
         domain_file.write(domain_json)
 
 
-def create_adult_small_dataset(path, domain_path):
+def get_random_ins_and_del_times(num_rows, start_date, end_date, datetime_dtype, timedelta_dtype):
+    possible_timestamps = np.arange(start_date, end_date, dtype=datetime_dtype)
+    insertion_times = np.random.choice(possible_timestamps, size=num_rows)
+
+    # generate random deletion times for each person (deletion times should be after insertion times)
+    time_deltas = np.array([timedelta(days=np.random.randint(1, 30)) for _ in range(num_rows)],
+                           dtype=timedelta_dtype)
+    deletion_times = insertion_times + time_deltas
+    end_date = datetime.date(end_date)  # both deletion_times[i] and end_date need to have the same type to be compared
+    deletion_times = np.where(deletion_times > end_date, end_date, deletion_times)
+    return insertion_times, deletion_times
+
+
+def create_adult_small_ohe_dataset(path, domain_path):
     # read dataset and domain
     df = pd.read_csv(path, na_values='?')
     with open(domain_path, "r") as domain_file:
@@ -145,27 +156,21 @@ def create_adult_small_dataset(path, domain_path):
     df = ht.fit_transform(df)
 
     # add random insertion and deletion times
-    num_rows = df.shape[0]
     start_date = datetime(year=2023, month=1, day=1)
     end_date = datetime(year=2023, month=12, day=31)
-    possible_timestamps = np.arange(start_date, end_date, dtype="datetime64[D]")
-    insertion_times = np.random.choice(possible_timestamps, size=num_rows)
-
-    # generate random deletion times for each person (deletion times should be after insertion times)
-    time_deltas = np.array([timedelta(days=np.random.randint(1, 30)) for _ in range(num_rows)],
-                           dtype="timedelta64[D]")
-    deletion_times = insertion_times + time_deltas
-    end_date = datetime.date(end_date)  # both deletion_times[i] and end_date need to have the same type to be compared
-    deletion_times = np.where(deletion_times > end_date, end_date, deletion_times)
-
+    insertion_times, deletion_times = get_random_ins_and_del_times(num_rows=df.shape[0],
+                                                                   start_date=start_date,
+                                                                   end_date=end_date,
+                                                                   datetime_dtype="datetime64[D]",
+                                                                   timedelta_dtype="timedelta64[D]")
     df["Insertion Time"] = insertion_times
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./adult_small.csv", index_label="Person ID")
+    df.to_csv(f"./adult_small_ohe.csv", index_label="Person ID")
 
 
-def create_adult_medium_dataset(path, domain_path):
+def create_adult_medium_ohe_dataset(path, domain_path):
     # read dataset and domain
     df = pd.read_csv(path, na_values='?')
     with open(domain_path, "r") as domain_file:
@@ -207,27 +212,21 @@ def create_adult_medium_dataset(path, domain_path):
     df = ht.fit_transform(df)
 
     # add random insertion and deletion times
-    num_rows = df.shape[0]
     start_date = datetime(year=2023, month=1, day=1)
     end_date = datetime(year=2023, month=12, day=31)
-    possible_timestamps = np.arange(start_date, end_date, dtype="datetime64[D]")
-    insertion_times = np.random.choice(possible_timestamps, size=num_rows)
-
-    # generate random deletion times for each person (deletion times should be after insertion times)
-    time_deltas = np.array([timedelta(days=np.random.randint(1, 30)) for _ in range(num_rows)],
-                           dtype="timedelta64[D]")
-    deletion_times = insertion_times + time_deltas
-    end_date = datetime.date(end_date)  # both deletion_times[i] and end_date need to have the same type to be compared
-    deletion_times = np.where(deletion_times > end_date, end_date, deletion_times)
-
+    insertion_times, deletion_times = get_random_ins_and_del_times(num_rows=df.shape[0],
+                                                                   start_date=start_date,
+                                                                   end_date=end_date,
+                                                                   datetime_dtype="datetime64[D]",
+                                                                   timedelta_dtype="timedelta64[D]")
     df["Insertion Time"] = insertion_times
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./adult_medium.csv", index_label="Person ID")
+    df.to_csv(f"./adult_medium_ohe.csv", index_label="Person ID")
 
 
 if __name__ == "__main__":
     adult_dataset_path = f"./adult.csv"
-    adult_dataset_domain_path = f"./adult_small_domain.json"
-    create_adult_small_dataset(path=adult_dataset_path, domain_path=adult_dataset_domain_path)
+    adult_dataset_domain_path = f"./adult_small_ohe_domain.json"
+    create_adult_small_ohe_dataset(path=adult_dataset_path, domain_path=adult_dataset_domain_path)
