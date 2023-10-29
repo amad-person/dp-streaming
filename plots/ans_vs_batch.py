@@ -21,19 +21,23 @@ if __name__ == "__main__":
     mechanism_labels, batch_nums, answer_values = [], [], []
     for run in range(num_runs):
         true_ans = np.load(f"{exp_save_dir}/nb_true_ans_run{run}.npz")['arr_0']
-        num_batches = len(true_ans)
+        num_batches, num_queries = true_ans.shape
 
-        # load error values for Naive Binary
+        # load answer values for Naive Binary
         nb_priv_ans = np.load(f"{exp_save_dir}/nb_private_ans_run{run}.npz")['arr_0']
-        answer_values += nb_priv_ans.tolist()
-        mechanism_labels += ["Naive Binary"] * num_batches
-        batch_nums += list(range(num_batches))
+        for query_idx in range(num_queries):
+            query_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
+            answer_values += query_answers.tolist()
+            mechanism_labels += ["Naive Binary"] * num_batches
+            batch_nums += list(range(num_batches))
 
-        # load error values for Binary Restarts
+        # load answer values for Binary Restarts
         br_priv_ans = np.load(f"{exp_save_dir}/br_private_ans_run{run}.npz")['arr_0']
-        answer_values += br_priv_ans.tolist()
-        mechanism_labels += ["Binary Restarts"] * num_batches
-        batch_nums += list(range(num_batches))
+        for query_idx in range(num_queries):
+            query_answers = br_priv_ans[:, query_idx]
+            answer_values += query_answers.tolist()
+            mechanism_labels += ["Binary Restarts"] * num_batches
+            batch_nums += list(range(num_batches))
 
     data_dict = {
         "Mechanism": mechanism_labels,
