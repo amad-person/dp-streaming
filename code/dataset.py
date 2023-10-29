@@ -3,10 +3,14 @@ import json
 import numpy as np
 import pandas as pd
 
+import utils
+
 
 # TODO: what happens if I want to add new batches over time? Need a way to append to the current iterator.
 class Dataset:
-    def __init__(self, df, domain, id_col, insertion_time_col, deletion_time_col, time_interval):
+    def __init__(self, df, domain,
+                 id_col, insertion_time_col, deletion_time_col, time_interval,
+                 hist_repr_type="ohe"):
         """
         Wrapper for a dataset.
 
@@ -17,6 +21,7 @@ class Dataset:
         :param deletion_time_col: Column name for the deletion timestamp.
         :param time_interval: pandas.DateOffset object that specifies
             the time interval to batch the dataset over.
+        :param hist_repr_type: Encoding format for dataset. Supported formats: 'binarized', 'ohe' (default).
         """
         self.df = df
         self.domain = domain
@@ -25,10 +30,13 @@ class Dataset:
         self.deletion_time_col = deletion_time_col
         self.time_interval = time_interval
         self.num_batches = self.create_batches()
+        self.hist_repr_type = hist_repr_type
         self.hist_repr_columns = None
 
     @staticmethod
-    def load_from_path(path, domain_path, id_col, insertion_time_col, deletion_time_col, time_interval):
+    def load_from_path(path, domain_path,
+                       id_col, insertion_time_col, deletion_time_col, time_interval,
+                       hist_repr_type="ohe"):
         """
         Load dataset from CSV file and returned wrapped Dataset.
 
@@ -39,12 +47,13 @@ class Dataset:
         :param deletion_time_col: Column name for the deletion timestamp.
         :param time_interval: pandas.DateOffset object that specifies
             the time interval to batch the dataset over.
+        :param hist_repr_type: Encoding format for dataset. Supported formats: 'binarized', 'ohe' (default).
         :return: A Dataset object wrapping the specified CSV dataset.
         """
         df = pd.read_csv(path)
         with open(domain_path, "r") as domain_file:
             domain = json.load(domain_file)
-        return Dataset(df, domain, id_col, insertion_time_col, deletion_time_col, time_interval)
+        return Dataset(df, domain, id_col, insertion_time_col, deletion_time_col, time_interval, hist_repr_type)
 
     def save_to_path(self, path):
         """
@@ -107,33 +116,32 @@ class Dataset:
     def get_domain(self):
         return self.domain
 
+    def get_hist_repr_type(self):
+        return self.hist_repr_type
+
     def get_hist_repr(self, ids):
         reduced_df = self.select_rows_from_ids(ids).drop(columns=[self.id_col,
                                                                   self.insertion_time_col, self.deletion_time_col,
                                                                   "insertion_batch", "deletion_batch"])
 
-        # convert all columns to one-hot encoding
-        reduced_df[reduced_df.columns] = reduced_df[reduced_df.columns].astype('category')
-        for feature in self.domain.keys():
-            feature_domain = self.domain[feature]
-            if isinstance(feature_domain, int):
-                num_categories = feature_domain
-            else:
-                num_categories = len(feature_domain)
-            # to account for missing categories in the dataset, we explicitly set all possible ones for the feature
-            reduced_df[feature] = reduced_df[feature].cat.set_categories(range(num_categories))
-        reduced_df_ohe = pd.get_dummies(reduced_df, dtype=int)
+        # encode dataset according to hist_repr_type
+        reduced_df_encoded = pd.DataFrame({})
+        if self.hist_repr_type == "binarized":
+            reduced_df_encoded = utils.dataset_to_binarized(reduced_df, self.domain)
+        elif self.hist_repr_type == "ohe":
+            reduced_df_encoded = utils.dataset_to_ohe(reduced_df, self.domain)
 
         # save column names
-        self.hist_repr_columns = reduced_df_ohe.columns
+        self.hist_repr_columns = reduced_df_encoded.columns
 
-        reduced_df_ohe_arr = reduced_df_ohe.to_numpy()  # convert to numpy array
+        # convert to numpy array
+        reduced_df_encoded_arr = reduced_df_encoded.to_numpy()
 
         # compute histogram
         hist_repr_dim = self.get_hist_repr_dim()
         hist_repr = [0.0] * (2 ** hist_repr_dim)
-        for row_idx in range(reduced_df_ohe_arr.shape[0]):  # iterate over all records in the dataset
-            x = reduced_df_ohe_arr[row_idx]  # get current record
+        for row_idx in range(reduced_df_encoded_arr.shape[0]):  # iterate over all records in the dataset
+            x = reduced_df_encoded_arr[row_idx]  # get current record
 
             # find bin corresponding to features for the record
             num = 0
@@ -151,14 +159,24 @@ class Dataset:
         return self.hist_repr_columns
 
     def get_hist_repr_dim(self):
-        # dim = sum of all feature domain sizes = columns in one-hot encoded dataset
+        # dim = sum of all feature domain sizes = columns in encoded dataset
         dim = 0
-        for feature in self.domain.keys():
-            feature_domain = self.domain[feature]
-            if isinstance(feature_domain, int):
-                dim += feature_domain
-            else:
-                dim += len(feature_domain)
+        if self.hist_repr_type == "ohe":
+            for feature in self.domain.keys():
+                feature_domain = self.domain[feature]
+                if isinstance(feature_domain, int):
+                    dim += feature_domain  # number of categories is already given as int
+                else:
+                    dim += len(feature_domain)  # number of categories for discrete variable
+        elif self.hist_repr_type == "binarized":
+            for feature in self.domain.keys():
+                feature_domain = self.domain[feature]
+                if isinstance(feature_domain, str):
+                    r = self.df[feature].max() - self.df[feature].min()  # range for continuous variable
+                    dim += np.ceil(np.log2(r))  # length of binarized representation
+                else:
+                    num_categories = len(feature_domain)  # number of categories for discrete variable
+                    dim += np.ceil(np.log2(num_categories))  # length of binarized representation
         return dim
 
 
@@ -181,18 +199,23 @@ if __name__ == "__main__":
     #     print("Insertions:", ins_ids)
     #     print("Deletions", del_ids)
 
+    dataset_name = "adult_small"
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    adult_dataset = Dataset.load_from_path("../data/adult_small.csv",
-                                           domain_path="../data/adult_small_ohe_domain.json",
-                                           id_col="Person ID",
-                                           insertion_time_col="Insertion Time",
-                                           deletion_time_col="Deletion Time",
-                                           time_interval=time_int)
-    adult_dataset.save_to_path(f"../data/adult_small_batched_{time_int_str}.csv")
-    for i, (ins_ids, del_ids) in enumerate(adult_dataset.get_batches()):
+    pmw_encoding_type = "ohe"
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
+                                     domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
+                                     id_col="Person ID",
+                                     insertion_time_col="Insertion Time",
+                                     deletion_time_col="Deletion Time",
+                                     time_interval=time_int,
+                                     hist_repr_type=pmw_encoding_type)
+    dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
+    for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
         print("Batch:", i)
         print("Insertions:", ins_ids)
         print("Deletions", del_ids)
 
-    hist = adult_dataset.get_hist_repr(ids=adult_dataset.df[adult_dataset.id_col])
+    hist = dataset.get_hist_repr(ids=dataset.df[dataset.id_col])
+    print(hist)
+    print(hist.shape)

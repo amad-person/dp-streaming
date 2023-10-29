@@ -1,10 +1,11 @@
+import random
 from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-import random
 
 import utils
+
 
 class Query(ABC):
     def __init__(self):
@@ -27,6 +28,7 @@ class CountQuery(Query):
     """
     Counts the number of records in the specified dataset.
     """
+
     def __init__(self, sensitivity=None, epsilon=None, rng=None):
         """
         :param sensitivity: Sensitivity of the query to be used by the Laplace Mechanism.
@@ -66,6 +68,7 @@ class PredicateQuery(Query):
     """
     Counts the number of records that match a predicate in the specified dataset.
     """
+
     def __init__(self, dataset=None, predicate=None, sensitivity=None, epsilon=None, rng=None):
         """
         :param dataset: Dataset to evaluate the predicate query on.
@@ -111,6 +114,7 @@ class PmwQuery(Query):
     Generates a synthetic dataset using k-way predicates for the specified dataset, and
     returns the answers for predicates using the synthetic dataset.
     """
+
     def __init__(self, dataset=None, predicates=None, k=None,
                  sensitivity=None, epsilon=None, delta=None,
                  iterations=10, repetitions=10,
@@ -251,15 +255,17 @@ class PmwQuery(Query):
                                   size=num_records,
                                   p=synthetic_hist)
 
-        # convert record type to actual one-hot-encoded row
+        # convert record type to encoded row
         dim = self.dataset.get_hist_repr_dim()
         data = np.zeros(shape=(num_records, dim))
         for i in range(num_records):
             binary_str = format(samples[i], f'0{dim}b')
             data[i] = [int(bit) for bit in binary_str]
 
-        # convert one-hot-encoded dataset to original
-        synthetic_df_ohe = pd.DataFrame(data, columns=self.dataset.get_hist_repr_columns())
-        # TODO: this needs a more graceful failure method when a variable has more than one 1 in its OHE.
-        synthetic_df = pd.from_dummies(synthetic_df_ohe)
-        return synthetic_df
+        # convert encoded dataset to original form
+        synthetic_df_encoded = pd.DataFrame(data, columns=self.dataset.get_hist_repr_columns())
+        hist_repr_type = self.dataset.get_hist_repr_type()
+        if hist_repr_type == "ohe":
+            return utils.ohe_to_dataset(encoded_df=synthetic_df_encoded)
+        elif hist_repr_type == "binarized":
+            return utils.binarized_to_dataset(encoded_df=synthetic_df_encoded)

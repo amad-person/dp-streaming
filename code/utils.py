@@ -1,7 +1,5 @@
-from functools import partial
-
 import numpy as np
-import multiprocessing
+import pandas as pd
 
 
 def get_first_non_zero_lsb(binary_num):
@@ -20,6 +18,33 @@ def get_tree_idx(num):
 
 def get_tree_height(num):
     return get_tree_idx(num)
+
+
+def dataset_to_ohe(df, domain):
+    # convert all columns to one-hot encoding
+    df[df.columns] = df[df.columns].astype('category')
+    for feature in domain.keys():
+        feature_domain = domain[feature]
+        if isinstance(feature_domain, int):
+            num_categories = feature_domain
+        else:
+            num_categories = len(feature_domain)
+        # to account for missing categories in the dataset, we explicitly set all possible ones for the feature
+        df[feature] = df[feature].cat.set_categories(range(num_categories))
+    return pd.get_dummies(df, dtype=int)
+
+
+def ohe_to_dataset(encoded_df):
+    # TODO: this needs a more graceful failure method when a variable has more than one 1 in its OHE.
+    return pd.from_dummies(encoded_df)
+
+
+def dataset_to_binarized(df, domain):
+    pass
+
+
+def binarized_to_dataset(encoded_df):
+    pass
 
 
 # source: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl/blob/master/src/gosper.jl

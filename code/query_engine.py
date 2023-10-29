@@ -161,15 +161,18 @@ class BinaryRestartsQueryEngine(QueryEngine):
 
 # Testing on the Adult dataset
 if __name__ == "__main__":
+    dataset_name = "adult_small"
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    dataset = Dataset.load_from_path("../data/adult_small.csv",
-                                     domain_path="../data/adult_small_ohe_domain.json",
+    pmw_encoding_type = "ohe"
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
+                                     domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
-                                     time_interval=time_int)
-    dataset.save_to_path(f"../data/adult_small_batched_{time_int_str}.csv")
+                                     time_interval=time_int,
+                                     hist_repr_type=pmw_encoding_type)
+    dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
 
     query_type = "pmw"
     epsilon = 10.0
@@ -179,7 +182,7 @@ if __name__ == "__main__":
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
     num_runs = 3
     org_seed = 1234
-    exp_save_dir = Path(f"../save/nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
+    exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
 
