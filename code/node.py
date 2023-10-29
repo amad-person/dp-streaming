@@ -183,7 +183,7 @@ class RestartNode(Node):
         self.naive_binary_count_deletions_map[self.current_tree_idx_nb_del_count] = tree_nodes
 
     def get_answer_from_naive_binary_deletions_map(self):
-        answer = 0
+        answer = utils.initialize_answer_var(self.query)
         for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
             for node in tree_nodes:
                 answer += node.get_private_answer()

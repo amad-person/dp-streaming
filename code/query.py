@@ -159,7 +159,7 @@ class PmwQuery(Query):
             self.delta = delta
 
     def get_true_answer(self, ids):
-        if ids is not None:
+        if ids is not None and len(ids) > 0:
             df = self.dataset.select_rows_from_ids(ids)
             answers = []
             for predicate in self.predicates:
@@ -169,7 +169,7 @@ class PmwQuery(Query):
             return [0] * len(self.predicates)
 
     def get_private_answer(self, ids):
-        if ids is not None:
+        if ids is not None and len(ids) > 0:
             self._mwem(ids)  # learn histogram using MWEM and generate synthetic dataset
             answers = []
             for predicate in self.predicates:

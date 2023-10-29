@@ -211,11 +211,10 @@ if __name__ == "__main__":
                                      time_interval=time_int,
                                      hist_repr_type=pmw_encoding_type)
     dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
-    # for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
-    #     print("Batch:", i)
-    #     print("Insertions:", ins_ids)
-    #     print("Deletions", del_ids)
+    for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
+        print("Batch:", i)
+        print("Insertions:", ins_ids)
+        print("Deletions", del_ids)
 
     hist = dataset.get_hist_repr(ids=dataset.df[dataset.id_col])
-    print(hist)
-    print(hist.shape)
+    print("Dimension of the hist representation:", dataset.get_hist_repr_dim())

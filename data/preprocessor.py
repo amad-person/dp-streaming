@@ -140,14 +140,14 @@ def get_config_for_adult_dataset(domain, size, enc_type):
         elif enc_type == "binarized":
             return {
                 "sdtypes": {
-                    "age": "numerical",
+                    # "age": "numerical",
                     "race": "categorical",
                     "sex": "categorical",
                     "hours-per-week": "numerical",
                     "income": "categorical"
                 },
                 "transformers": {
-                    "age": None,
+                    # "age": None,
                     "race": OrderedLabelEncoder(order=domain["race"]),
                     "sex": OrderedLabelEncoder(order=domain["sex"]),
                     "hours-per-week": None,
@@ -214,8 +214,11 @@ def create_adult_dataset(path, domain_path, size, enc_type):
 
     if enc_type == "ohe":
         # make continuous columns categorical (integers)
-        df["age"] = pd.cut(df["age"], bins=domain["age"], ordered=True, labels=False)
-        df["hours-per-week"] = pd.cut(df["hours-per-week"], bins=domain["hours-per-week"], ordered=True, labels=False)
+        if "age" in df.columns:
+            df["age"] = pd.cut(df["age"], bins=domain["age"], ordered=True, labels=False)
+
+        if "hours-per-week" in df.columns:
+            df["hours-per-week"] = pd.cut(df["hours-per-week"], bins=domain["hours-per-week"], ordered=True, labels=False)
 
     # get RDT transformer config based on 'size' and 'enc_type'
     ht_config = get_config_for_adult_dataset(domain, size, enc_type)
@@ -241,7 +244,7 @@ def create_adult_dataset(path, domain_path, size, enc_type):
 if __name__ == "__main__":
     adult_dataset_path = f"./adult.csv"
 
-    adult_size = "medium"
+    adult_size = "small"
     encoding_type = "binarized"
     adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
 

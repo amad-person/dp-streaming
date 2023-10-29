@@ -35,7 +35,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
             if i == num_batches:
-                return
+                break
 
             node_i = i + 1
 
@@ -77,8 +77,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
             self.naive_binary_deletions_map[current_tree_idx] = del_tree_nodes
 
             # combine answers from all trees
-            true_answer = 0
-            private_answer = 0
+            true_answer, private_answer = utils.initialize_answer_vars(self.query)
             for tree_idx, tree_nodes in self.naive_binary_insertions_map.items():
                 for node in tree_nodes:
                     true_answer += node.get_true_answer()
@@ -108,7 +107,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
             if i == num_batches:
-                return
+                break
 
             node_i = i + 1
 
@@ -146,8 +145,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
                     node.process_deletions(del_ids)
 
             # combine answers from all trees
-            true_answer = 0
-            private_answer = 0
+            true_answer, private_answer = utils.initialize_answer_vars(self.query)
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
                 for node in tree_nodes:
                     true_answer += node.get_true_answer()
@@ -164,7 +162,7 @@ if __name__ == "__main__":
     dataset_name = "adult_small"
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    pmw_encoding_type = "ohe"
+    pmw_encoding_type = "binarized"
     dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
                                      domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
                                      id_col="Person ID",
@@ -186,7 +184,7 @@ if __name__ == "__main__":
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
 
-    predicates = ['age == 0 & race == 1', 'sex == 0']
+    predicates = ['sex == 0 & race == 1', 'sex == 0']
 
     # run mechanisms on the same dataset NUM_RUNS number of times
     for run in range(num_runs):
