@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from query import Query, CountQuery, PredicateQuery, PmwQuery
+from query import Query, PmwQuery
+
 
 def get_first_non_zero_lsb(binary_num):
     binary_str = str(binary_num)[::-1]
@@ -23,19 +24,19 @@ def get_tree_height(num):
 
 def initialize_answer_var(query: Query):
     if isinstance(query, PmwQuery):
-        answer = np.zeros(shape=len(query.predicates), dtype=int)
+        answer = np.zeros(shape=len(query.predicates))
     else:
-        answer = 0
+        answer = np.array([0.0])
     return answer
 
 
 def initialize_answer_vars(query: Query):
     if isinstance(query, PmwQuery):
-        true_answer = np.zeros(shape=len(query.predicates), dtype=int)
-        private_answer = np.zeros(shape=len(query.predicates), dtype=int)
+        true_answer = np.zeros(shape=len(query.predicates))
+        private_answer = np.zeros(shape=len(query.predicates))
     else:
-        true_answer = 0
-        private_answer = 0
+        true_answer = np.array([0.0])
+        private_answer = np.array([0.0])
     return true_answer, private_answer
 
 

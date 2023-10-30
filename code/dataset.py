@@ -31,6 +31,8 @@ class Dataset:
         self.time_interval = time_interval
         self.num_batches = self.create_batches()
         self.hist_repr_type = hist_repr_type
+        self.encoded_df = None
+        self.hist_repr_dim = None
         self.hist_repr_columns = None
 
     @staticmethod
@@ -120,28 +122,37 @@ class Dataset:
         return self.hist_repr_type
 
     def get_hist_repr(self, ids):
-        reduced_df = self.select_rows_from_ids(ids).drop(columns=[self.id_col,
-                                                                  self.insertion_time_col, self.deletion_time_col,
-                                                                  "insertion_batch", "deletion_batch"])
+        # encode dataset if it has not been encoded before
+        if self.encoded_df is None:
+            df_with_features_only = self.df.drop(columns=[self.id_col,
+                                                          self.insertion_time_col, self.deletion_time_col,
+                                                          "insertion_batch", "deletion_batch"])
 
-        # encode dataset according to hist_repr_type
-        reduced_df_encoded = pd.DataFrame({})
-        if self.hist_repr_type == "binarized":
-            reduced_df_encoded = utils.dataset_to_binarized(reduced_df, self.domain)
-        elif self.hist_repr_type == "ohe":
-            reduced_df_encoded = utils.dataset_to_ohe(reduced_df, self.domain)
+            # encode dataset according to hist_repr_type
+            encoded_df = pd.DataFrame({})
+            if self.hist_repr_type == "binarized":
+                encoded_df = utils.dataset_to_binarized(df_with_features_only, self.domain)
+            elif self.hist_repr_type == "ohe":
+                encoded_df = utils.dataset_to_ohe(df_with_features_only, self.domain)
 
-        # save column names
-        self.hist_repr_columns = reduced_df_encoded.columns
+            # save column names
+            self.hist_repr_columns = encoded_df.columns
+
+            # save encoded dataset
+            self.encoded_df = encoded_df
+
+        # select current ids from encoded dataset
+        selected_ids = list(np.where(self.df[self.id_col].isin(ids))[0])
+        reduced_encoded_df = self.encoded_df.iloc[selected_ids]
 
         # convert to numpy array
-        reduced_df_encoded_arr = reduced_df_encoded.to_numpy()
+        reduced_encoded_df_arr = reduced_encoded_df.to_numpy()
 
         # compute histogram
         hist_repr_dim = self.get_hist_repr_dim()
         hist_repr = [0.0] * (2 ** hist_repr_dim)
-        for row_idx in range(reduced_df_encoded_arr.shape[0]):  # iterate over all records in the dataset
-            x = reduced_df_encoded_arr[row_idx]  # get current record
+        for row_idx in range(reduced_encoded_df_arr.shape[0]):  # iterate over all records in the dataset
+            x = reduced_encoded_df_arr[row_idx]  # get current record
 
             # find bin corresponding to features for the record
             num = 0
@@ -159,25 +170,28 @@ class Dataset:
         return self.hist_repr_columns
 
     def get_hist_repr_dim(self):
-        # dim = sum of all feature domain sizes = columns in encoded dataset
-        dim = 0
-        if self.hist_repr_type == "ohe":
-            for feature in self.domain.keys():
-                feature_domain = self.domain[feature]
-                if isinstance(feature_domain, int):
-                    dim += feature_domain  # number of categories is already given as int
-                else:
-                    dim += len(feature_domain)  # number of categories for discrete variable
-        elif self.hist_repr_type == "binarized":
-            for feature in self.domain.keys():
-                feature_domain = self.domain[feature]
-                if isinstance(feature_domain, str):
-                    r = self.df[feature].max() - self.df[feature].min()  # range for continuous variable
-                    dim += int(np.ceil(np.log2(r)))  # length of binarized representation
-                else:
-                    num_categories = len(feature_domain)  # number of categories for discrete variable
-                    dim += int(np.ceil(np.log2(num_categories)))  # length of binarized representation
-        return dim
+        # calculate dim if it has not been calculated before
+        if self.hist_repr_dim is None:
+            # dim = sum of all feature domain sizes = columns in encoded dataset
+            dim = 0
+            if self.hist_repr_type == "ohe":
+                for feature in self.domain.keys():
+                    feature_domain = self.domain[feature]
+                    if isinstance(feature_domain, int):
+                        dim += feature_domain  # number of categories is already given as int
+                    else:
+                        dim += len(feature_domain)  # number of categories for discrete variable
+            elif self.hist_repr_type == "binarized":
+                for feature in self.domain.keys():
+                    feature_domain = self.domain[feature]
+                    if isinstance(feature_domain, str):
+                        r = self.df[feature].max() - self.df[feature].min()  # range for continuous variable
+                        dim += int(np.ceil(np.log2(r)))  # length of binarized representation
+                    else:
+                        num_categories = len(feature_domain)  # number of categories for discrete variable
+                        dim += int(np.ceil(np.log2(num_categories)))  # length of binarized representation
+            self.hist_repr_dim = dim
+        return self.hist_repr_dim
 
 
 # Testing

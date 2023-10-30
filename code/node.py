@@ -62,8 +62,8 @@ class RestartNode(Node):
         self.epsilon = epsilon
         self.delta = delta
 
-        # noisy estimate of the current number of ids
-        self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)
+        # noisy estimate of the current number of ids (every query returns a list, so we take the first value)
+        self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)[0]
 
         # variables that store the final answers for the node
         self.true_answer = None
@@ -114,11 +114,11 @@ class RestartNode(Node):
                 self.update_naive_binary_count_deletions_map(None)
 
         # check if node can be restarted
-        num_deletions = self.get_answer_from_naive_binary_count_deletions_map()
+        num_deletions = self.get_answer_from_naive_binary_count_deletions_map()[0]  # every query returns a list
         num_deletions_error = (1 / self.epsilon
                                * np.power(np.log2(max(self.num_nodes_nb_del_count, 1)), 1.5)  # TODO: check t
                                * np.log2(self.beta))
-        if num_deletions > ((self.num_ins_ids / 2) + num_deletions_error):
+        if num_deletions > ((self.num_ins_ids / 2) + 2 * num_deletions_error):
             self.restart()
         else:
             del_ids_private_answer = self.get_answer_from_naive_binary_deletions_map()
@@ -138,7 +138,11 @@ class RestartNode(Node):
         # TODO: Check epsilon
         query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(self.node_i_nb_deletions))
         tree_nodes = self.naive_binary_deletions_map.get(self.current_tree_idx_nb_deletions, [])
-        tree_nodes.append(NaiveNode([del_id], query))
+        if del_id is not None:
+            del_id_list = [del_id]
+        else:
+            del_id_list = []
+        tree_nodes.append(NaiveNode(del_id_list, query))
         self.num_nodes_nb_deletions += 1
 
         # update tree by merging nodes
@@ -167,7 +171,11 @@ class RestartNode(Node):
         count_query = CountQuery(sensitivity=1,
                                  epsilon=self.epsilon / utils.get_tree_height(self.node_i_nb_deletions))
         tree_nodes = self.naive_binary_count_deletions_map.get(self.current_tree_idx_nb_del_count, [])
-        tree_nodes.append(NaiveNode([del_id], count_query))
+        if del_id is not None:
+            del_id_list = [del_id]
+        else:
+            del_id_list = []
+        tree_nodes.append(NaiveNode(del_id_list, count_query))
         self.num_nodes_nb_del_count += 1
 
         # update tree by merging nodes
@@ -190,7 +198,7 @@ class RestartNode(Node):
         return answer
 
     def get_answer_from_naive_binary_count_deletions_map(self):
-        answer = 0
+        answer = utils.initialize_answer_var(CountQuery())
         for tree_idx, tree_nodes in self.naive_binary_count_deletions_map.items():
             for node in tree_nodes:
                 answer += node.get_private_answer()
@@ -221,8 +229,8 @@ class RestartNode(Node):
         if self.delta:
             self.delta = self.delta / 2
 
-        # set new noisy estimate for the number of ids
-        self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)
+        # set new noisy estimate for the number of ids (every query returns a list, so we take the first value)
+        self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)[0]
 
         # recompute answers
         self.compute_answers()

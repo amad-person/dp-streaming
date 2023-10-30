@@ -16,11 +16,11 @@ class Query(ABC):
         pass
 
     @abstractmethod
-    def get_true_answer(self, *args):
+    def get_true_answer(self, *args) -> list:
         pass
 
     @abstractmethod
-    def get_private_answer(self, *args):
+    def get_private_answer(self, *args) -> list:
         pass
 
 
@@ -51,17 +51,18 @@ class CountQuery(Query):
 
     def get_true_answer(self, ids):
         if ids is not None:
-            return len(ids)
+            return [len(ids)]
         else:
-            return 0
+            return [0]
 
     def get_private_answer(self, ids):
         if ids is not None:
-            true_answer = self.get_true_answer(ids)
+            true_answer = self.get_true_answer(ids)[0]
             laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
-            return true_answer + laplace_noise
+            noisy_answer = true_answer + laplace_noise
+            return [noisy_answer]
         else:
-            return 0
+            return [0]
 
 
 class PredicateQuery(Query):
@@ -96,17 +97,18 @@ class PredicateQuery(Query):
     def get_true_answer(self, ids):
         if ids is not None:
             df = self.dataset.select_rows_from_ids(ids)
-            return df.query(self.predicate).shape[0]
+            return [df.query(self.predicate).shape[0]]
         else:
-            return 0
+            return [0]
 
     def get_private_answer(self, ids):
         if ids is not None:
-            true_answer = self.get_true_answer(ids)
+            true_answer = self.get_true_answer(ids)[0]
             laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
-            return true_answer + laplace_noise
+            noisy_answer = true_answer + laplace_noise
+            return [noisy_answer]
         else:
-            return 0
+            return [0]
 
 
 class PmwQuery(Query):
@@ -249,6 +251,10 @@ class PmwQuery(Query):
         self.synthetic_dataset = self._create_synthetic_dataset(synthetic_hist, num_records=len(ids))
 
     def _create_synthetic_dataset(self, synthetic_hist, num_records):
+        # remove invalid values (NaN) and normalize
+        synthetic_hist = np.nan_to_num(synthetic_hist)
+        synthetic_hist /= synthetic_hist.sum()
+
         # sample 'num_records' rows for the synthetic dataset
         # each row is a record type from the domain 2^dim
         samples = self.rng.choice(a=np.array(range(len(synthetic_hist))),

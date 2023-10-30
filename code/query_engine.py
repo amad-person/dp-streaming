@@ -90,7 +90,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
             true_answers.append(true_answer)
             private_answers.append(private_answer)
 
-        return true_answers, private_answers
+        return np.array(true_answers), np.array(private_answers)
 
 
 class BinaryRestartsQueryEngine(QueryEngine):
@@ -154,7 +154,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
             true_answers.append(true_answer)
             private_answers.append(private_answer)
 
-        return true_answers, private_answers
+        return np.array(true_answers), np.array(private_answers)
 
 
 # Testing on the Adult dataset
@@ -188,19 +188,24 @@ if __name__ == "__main__":
 
     # run mechanisms on the same dataset NUM_RUNS number of times
     for run in range(num_runs):
+        print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
 
+        print("Running Naive Binary Mechanism")
         nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
-        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=1)
-        print("Naive Binary", nb_true_ans, nb_private_ans)
+        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=2)
+        print("True Answers:", nb_true_ans.tolist())
+        print("Private Answers:", nb_private_ans.tolist())
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
         np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
+        print("Running Binary Restarts Mechanism")
         br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
-        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=1)
-        print("Binary Restarts", br_true_ans, br_private_ans)
+        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=2)
+        print("True Answers:", br_true_ans.tolist())
+        print("Private Answers:", br_private_ans.tolist())
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
         np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))
