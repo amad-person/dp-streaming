@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from query import Query, PmwQuery
-
 
 def get_first_non_zero_lsb(binary_num):
     binary_str = str(binary_num)[::-1]
@@ -20,24 +18,6 @@ def get_tree_idx(num):
 
 def get_tree_height(num):
     return get_tree_idx(num)
-
-
-def initialize_answer_var(query: Query):
-    if isinstance(query, PmwQuery):
-        answer = np.zeros(shape=len(query.predicates))
-    else:
-        answer = np.array([0.0])
-    return answer
-
-
-def initialize_answer_vars(query: Query):
-    if isinstance(query, PmwQuery):
-        true_answer = np.zeros(shape=len(query.predicates))
-        private_answer = np.zeros(shape=len(query.predicates))
-    else:
-        true_answer = np.array([0.0])
-        private_answer = np.array([0.0])
-    return true_answer, private_answer
 
 
 def dataset_to_ohe(df, domain):

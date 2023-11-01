@@ -276,3 +276,21 @@ class PmwQuery(Query):
             return utils.ohe_to_dataset(encoded_df=synthetic_df_encoded)
         elif hist_repr_type == "binarized":
             return utils.binarized_to_dataset(encoded_df=synthetic_df_encoded, domain=self.dataset.get_domain())
+
+
+def initialize_answer_var(query: Query):
+    if isinstance(query, PmwQuery):
+        answer = np.zeros(shape=len(query.predicates))
+    else:
+        answer = np.array([0.0])
+    return answer
+
+
+def initialize_answer_vars(query: Query):
+    if isinstance(query, PmwQuery):
+        true_answer = np.zeros(shape=len(query.predicates))
+        private_answer = np.zeros(shape=len(query.predicates))
+    else:
+        true_answer = np.array([0.0])
+        private_answer = np.array([0.0])
+    return true_answer, private_answer

@@ -8,7 +8,7 @@ import pandas as pd
 import utils
 from dataset import Dataset
 from node import NaiveNode, RestartNode
-from query import PmwQuery
+from query import initialize_answer_vars, PmwQuery
 
 
 class QueryEngine(ABC):
@@ -81,7 +81,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
             self.naive_binary_deletions_map[current_tree_idx] = del_tree_nodes
 
             # combine answers from all trees
-            true_answer, private_answer = utils.initialize_answer_vars(self.query)
+            true_answer, private_answer = initialize_answer_vars(self.query)
             for tree_idx, tree_nodes in self.naive_binary_insertions_map.items():
                 for node in tree_nodes:
                     true_answer += node.get_true_answer()
@@ -153,7 +153,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
                     node.process_deletions(del_ids)
 
             # combine answers from all trees
-            true_answer, private_answer = utils.initialize_answer_vars(self.query)
+            true_answer, private_answer = initialize_answer_vars(self.query)
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
                 for node in tree_nodes:
                     true_answer += node.get_true_answer()
