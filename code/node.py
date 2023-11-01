@@ -89,7 +89,7 @@ class RestartNode(Node):
     def merge_node(self, node):
         self.ins_ids = self.ins_ids + node.ins_ids  # merge insertion ids
 
-        # merge deletion streams (self node is guaranteed to be the earlier node, so counters don't need to be updated)
+        # merge deletion streams (self.node is guaranteed to be the earlier node, so counters don't need to be updated)
         for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
             to_be_merged_nodes = node.naive_binary_deletions_map.get(tree_idx, [])
             for (node_1, node_2) in zip(tree_nodes, to_be_merged_nodes):  # zip will merge acc. length of shorter list

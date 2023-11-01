@@ -216,7 +216,7 @@ class PmwQuery(Query):
 
         # initialize histogram as a uniform distribution
         synthetic_hist = np.ones(shape=2 ** self.dataset.get_hist_repr_dim(),  # dimensions = product of domains
-                                 dtype=np.float32)
+                                 dtype=np.float64)  # use high precision
         synthetic_hist /= synthetic_hist.sum()  # normalize
 
         epsilon_for_each_iteration = self.epsilon / self.iterations
@@ -251,8 +251,9 @@ class PmwQuery(Query):
         self.synthetic_dataset = self._create_synthetic_dataset(synthetic_hist, num_records=len(ids))
 
     def _create_synthetic_dataset(self, synthetic_hist, num_records):
-        # remove invalid values (NaN) and normalize
+        # numerical instability: remove invalid values (NaN), slightly increase weight of 0s, and normalize
         synthetic_hist = np.nan_to_num(synthetic_hist)
+        synthetic_hist[synthetic_hist == 0] = 1e-32
         synthetic_hist /= synthetic_hist.sum()
 
         # sample 'num_records' rows for the synthetic dataset

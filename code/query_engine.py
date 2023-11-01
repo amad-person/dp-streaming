@@ -34,8 +34,12 @@ class NaiveBinaryQueryEngine(QueryEngine):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
-            if i == num_batches:
+            if num_batches is not None and i == num_batches:
                 break
+
+            print("Batch number:", i)
+            print("Insertion IDs:", ins_ids)
+            print("Deletion IDs:", del_ids)
 
             node_i = i + 1
 
@@ -106,8 +110,12 @@ class BinaryRestartsQueryEngine(QueryEngine):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
-            if i == num_batches:
+            if num_batches is not None and i == num_batches:
                 break
+
+            print("Batch number:", i)
+            print("Insertion IDs:", ins_ids)
+            print("Deletion IDs:", del_ids)
 
             node_i = i + 1
 
@@ -183,7 +191,7 @@ if __name__ == "__main__":
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
-
+    num_batches = 10
     predicates = ['sex == 0 & race == 1', 'sex == 0']
 
     # run mechanisms on the same dataset NUM_RUNS number of times
@@ -195,7 +203,7 @@ if __name__ == "__main__":
         print("Running Naive Binary Mechanism")
         nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
-        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=2)
+        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=num_batches)
         print("True Answers:", nb_true_ans.tolist())
         print("Private Answers:", nb_private_ans.tolist())
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
@@ -204,7 +212,7 @@ if __name__ == "__main__":
         print("Running Binary Restarts Mechanism")
         br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
         binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
-        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=2)
+        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches)
         print("True Answers:", br_true_ans.tolist())
         print("Private Answers:", br_private_ans.tolist())
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
