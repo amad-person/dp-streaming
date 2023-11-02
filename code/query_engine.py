@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 import utils
 from dataset import Dataset
 from node import NaiveNode, RestartNode
-from query import initialize_answer_vars, PmwQuery
+from query import initialize_answer_vars, CountQuery, PmwQuery
 
 
 class QueryEngine(ABC):
@@ -20,8 +21,16 @@ class QueryEngine(ABC):
         pass
 
 
+def true_answer_worker(node):
+    return node.get_true_answer()
+
+
+def private_answer_worker(node):
+    return node.get_private_answer()
+
+
 class NaiveBinaryQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta):
+    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
@@ -29,6 +38,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
         self.delta = delta
         self.naive_binary_insertions_map = {}  # stream to track insertions
         self.naive_binary_deletions_map = {}  # stream to track deletions
+        self.num_threads = num_threads
 
     def run(self, num_batches=None):
         true_answers, private_answers = [], []
@@ -82,14 +92,49 @@ class NaiveBinaryQueryEngine(QueryEngine):
 
             # combine answers from all trees
             true_answer, private_answer = initialize_answer_vars(self.query)
+            insertion_nodes = []
             for tree_idx, tree_nodes in self.naive_binary_insertions_map.items():
                 for node in tree_nodes:
-                    true_answer += node.get_true_answer()
-                    private_answer += node.get_private_answer()
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
+                    insertion_nodes.append(node)
+
+            insertion_pool = Pool(self.num_threads)
+            insertion_true_results = insertion_pool.map(true_answer_worker, (node for node in insertion_nodes))
+            insertion_pool.close()
+            insertion_pool.join()
+
+            insertion_pool = Pool(self.num_threads)
+            insertion_private_results = insertion_pool.map(private_answer_worker, (node for node in insertion_nodes))
+            insertion_pool.close()
+            insertion_pool.join()
+
+            deletion_nodes = []
             for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
                 for node in tree_nodes:
-                    true_answer -= node.get_true_answer()
-                    private_answer -= node.get_private_answer()
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
+                    deletion_nodes.append(node)
+
+            deletion_pool = Pool(self.num_threads)
+            deletion_true_results = deletion_pool.map(true_answer_worker, (node for node in deletion_nodes))
+            deletion_pool.close()
+            deletion_pool.join()
+
+            deletion_pool = Pool(self.num_threads)
+            deletion_private_results = deletion_pool.map(private_answer_worker, (node for node in deletion_nodes))
+            deletion_pool.close()
+            deletion_pool.join()
+
+            for result in insertion_true_results:
+                true_answer += result
+            for result in deletion_true_results:
+                true_answer -= result
+
+            for result in insertion_private_results:
+                private_answer += result
+            for result in deletion_private_results:
+                private_answer -= result
 
             true_answers.append(true_answer)
             private_answers.append(private_answer)
@@ -98,13 +143,14 @@ class NaiveBinaryQueryEngine(QueryEngine):
 
 
 class BinaryRestartsQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta):
+    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
         self.epsilon = epsilon
         self.delta = delta
         self.binary_restarts_map = {}
+        self.num_threads = num_threads
 
     def run(self, num_batches=None):
         true_answers, private_answers = [], []
@@ -128,7 +174,8 @@ class BinaryRestartsQueryEngine(QueryEngine):
             # build current node
             self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
                                               delta=self.delta)
-            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i))
+            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i),
+                               num_threads=self.num_threads)
             num_nodes += 1
 
             # add current node to map
@@ -154,10 +201,28 @@ class BinaryRestartsQueryEngine(QueryEngine):
 
             # combine answers from all trees
             true_answer, private_answer = initialize_answer_vars(self.query)
+            binary_nodes = []
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
                 for node in tree_nodes:
-                    true_answer += node.get_true_answer()
-                    private_answer += node.get_private_answer()
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
+                    binary_nodes.append(node)
+
+            true_pool = Pool(self.num_threads)
+            true_results = true_pool.map(true_answer_worker, (node for node in binary_nodes))
+            true_pool.close()
+            true_pool.join()
+
+            private_pool = Pool(self.num_threads)
+            private_results = private_pool.map(private_answer_worker, (node for node in binary_nodes))
+            private_pool.close()
+            private_pool.join()
+
+            for result in true_results:
+                true_answer += result
+
+            for result in private_results:
+                private_answer += result
 
             true_answers.append(true_answer)
             private_answers.append(private_answer)
@@ -167,18 +232,22 @@ class BinaryRestartsQueryEngine(QueryEngine):
 
 # Testing on the Adult dataset
 if __name__ == "__main__":
-    dataset_name = "adult_small"
+    batch_size = 1000
+    window_size = 3
+    dataset_prefix = "adult_small"
+    dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
+
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    pmw_encoding_type = "binarized"
-    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
-                                     domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
+    data_encoding_type = "binarized"
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{data_encoding_type}.csv",
+                                     domain_path=f"../data/{dataset_prefix}_{data_encoding_type}_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int,
-                                     hist_repr_type=pmw_encoding_type)
-    dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
+                                     hist_repr_type=data_encoding_type)
+    dataset.save_to_path(f"../data/{dataset_name}_{data_encoding_type}_batched_{time_int_str}.csv")
 
     query_type = "pmw"
     epsilon = 10.0
@@ -191,8 +260,18 @@ if __name__ == "__main__":
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
-    num_batches = 10
-    predicates = ['sex == 0 & race == 1', 'sex == 0']
+    num_batches = None
+    predicates = ["sex == 0 & race == 0", "sex == 1 & race == 0",
+                  "sex == 0 & race == 1", "sex == 1 & race == 1",
+                  "sex == 0 & race == 2", "sex == 1 & race == 2",
+                  "sex == 0 & race == 3", "sex == 1 & race == 3",
+                  "sex == 0 & race == 4", "sex == 1 & race == 4",
+                  "sex == 0 & income == 0", "sex == 1 & income == 0",
+                  "sex == 0 & income == 1", "sex == 1 & income == 1",
+                  "sex == 0", "sex == 1",
+                  "race == 0", "race == 1", "race == 2", "race == 3", "race == 4",
+                  "income == 0", "income == 1"]
+    num_threads = 8
 
     # run mechanisms on the same dataset NUM_RUNS number of times
     for run in range(num_runs):
@@ -202,7 +281,7 @@ if __name__ == "__main__":
 
         print("Running Naive Binary Mechanism")
         nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
-        naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta)
+        naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta, num_threads)
         nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=num_batches)
         print("True Answers:", nb_true_ans.tolist())
         print("Private Answers:", nb_private_ans.tolist())
@@ -211,7 +290,7 @@ if __name__ == "__main__":
 
         print("Running Binary Restarts Mechanism")
         br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
-        binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta)
+        binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta, num_threads)
         br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches)
         print("True Answers:", br_true_ans.tolist())
         print("Private Answers:", br_private_ans.tolist())

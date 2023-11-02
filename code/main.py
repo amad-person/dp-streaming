@@ -4,30 +4,27 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from data.preprocessor import create_fake_ins_after_del_dataset
 from dataset import Dataset
 from query import CountQuery
 from query_engine import NaiveBinaryQueryEngine, BinaryRestartsQueryEngine
 
 if __name__ == "__main__":
-    dataset_name = "fake_ins_after_del_dataset"
-    n_ins = 1000
-    n_repeats = 10
-    create_fake_ins_after_del_dataset(path=f"../data/{dataset_name}_{n_ins}_{n_repeats}.csv",
-                                      domain_path=f"../data/{dataset_name}_{n_ins}_{n_repeats}_domain"
-                                                  f".json",
-                                      num_ins=n_ins,
-                                      num_repeats=n_repeats)
+    batch_size = 1000
+    window_size = 3
+    dataset_prefix = "adult_small"
+    dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
+
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{n_ins}_{n_repeats}.csv",
-                                     domain_path=f"../data/{dataset_name}_{n_ins}_{n_repeats}_domain"
-                                                 f".json",
+    data_encoding_type = "binarized"
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{data_encoding_type}.csv",
+                                     domain_path=f"../data/{dataset_prefix}_{data_encoding_type}_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
-                                     time_interval=time_int)
-    dataset.save_to_path(f"../data/{dataset_name}_{n_ins}_{n_repeats}_batched_{time_int_str}.csv")
+                                     time_interval=time_int,
+                                     hist_repr_type=data_encoding_type)
+    dataset.save_to_path(f"../data/{dataset_name}_{data_encoding_type}_batched_{time_int_str}.csv")
 
     query_type = "count"
     epsilon = 10.0
@@ -36,7 +33,7 @@ if __name__ == "__main__":
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
     num_runs = 10
-    org_seed = 1234
+    org_seed = 1000
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
