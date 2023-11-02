@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from multiprocessing import Pool
 
 import numpy as np
 
 import utils
 from query import initialize_answer_var, CountQuery
+
+
+def private_answer_worker(node):
+    return node.get_private_answer()
 
 
 class Node(ABC):
@@ -31,15 +36,23 @@ class NaiveNode(Node):
         self.query = query
         self.true_answer = None
         self.private_answer = None
+
+        # caching
+        self.rerun = True
+
         self.compute_answers()
 
     def compute_answers(self):
         self.true_answer = self.query.get_true_answer(self.ids)
-        self.private_answer = self.query.get_private_answer(self.ids)
+        self.private_answer = self.query.get_private_answer(self.ids, self.rerun)
 
     def merge_node(self, node):
         self.ids = self.ids + node.ids
+        self.set_rerun(rerun=True)  # need to regenerate answers after merging
         self.compute_answers()
+
+    def set_rerun(self, rerun):
+        self.rerun = rerun
 
     def get_true_answer(self):
         return self.true_answer
@@ -52,7 +65,7 @@ class NaiveNode(Node):
 
 
 class RestartNode(Node):
-    def __init__(self, ins_ids, query, epsilon, delta=None, beta=0.15):
+    def __init__(self, ins_ids, query, epsilon, delta=None, beta=0.15, num_threads=8):
         super().__init__()
         self.ins_ids = ins_ids
         self.query = query
@@ -69,6 +82,11 @@ class RestartNode(Node):
         self.true_answer = None
         self.ins_ids_private_answer = None
         self.private_answer = None
+
+        # caching and optimization
+        self.rerun = True
+        self.num_threads = num_threads
+
         self.compute_answers()
 
         # initialize deletion streams
@@ -83,7 +101,7 @@ class RestartNode(Node):
     def compute_answers(self):
         self.query.set_privacy_parameters(epsilon=self.epsilon, delta=self.delta)
         self.true_answer = self.query.get_true_answer(self.ins_ids)
-        self.ins_ids_private_answer = self.query.get_private_answer(self.ins_ids)
+        self.ins_ids_private_answer = self.query.get_private_answer(self.ins_ids, self.rerun)
         self.private_answer = self.ins_ids_private_answer
 
     def merge_node(self, node):
@@ -99,7 +117,12 @@ class RestartNode(Node):
             for (node_1, node_2) in zip(tree_nodes, to_be_merged_nodes):  # zip will merge acc. length of shorter list
                 node_1.merge_node(node_2)
 
+        self.set_rerun(rerun=True)  # need to regenerate answers after merging
+
         self.compute_answers()  # recompute answers
+
+    def set_rerun(self, rerun):
+        self.rerun = rerun
 
     def process_deletions(self, received_del_ids):
         for del_id in received_del_ids:
@@ -192,16 +215,40 @@ class RestartNode(Node):
 
     def get_answer_from_naive_binary_deletions_map(self):
         answer = initialize_answer_var(self.query)
+        nodes = []
         for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
             for node in tree_nodes:
-                answer += node.get_private_answer()
+                if tree_idx != self.current_tree_idx_nb_deletions:
+                    node.set_rerun(rerun=False)
+                nodes.append(node)
+
+        pool = Pool(self.num_threads)
+        pool_results = pool.map(private_answer_worker, (node for node in nodes))
+        pool.close()
+        pool.join()
+
+        for result in pool_results:
+            answer += result
+
         return answer
 
     def get_answer_from_naive_binary_count_deletions_map(self):
         answer = initialize_answer_var(CountQuery())
+        nodes = []
         for tree_idx, tree_nodes in self.naive_binary_count_deletions_map.items():
             for node in tree_nodes:
-                answer += node.get_private_answer()
+                if tree_idx != self.current_tree_idx_nb_del_count:
+                    node.set_rerun(rerun=False)
+                nodes.append(node)
+
+        pool = Pool(self.num_threads)
+        pool_results = pool.map(private_answer_worker, (node for node in nodes))
+        pool.close()
+        pool.join()
+
+        for result in pool_results:
+            answer += result
+
         return answer
 
     def get_true_answer(self):
@@ -214,6 +261,9 @@ class RestartNode(Node):
         # remove previously deleted items from the insertion ids
         for del_id in self.del_ids:
             self.ins_ids.remove(del_id)
+
+        # need to regenerate answers after merging
+        self.rerun = True
 
         # restart deletion streams
         self.del_ids = []

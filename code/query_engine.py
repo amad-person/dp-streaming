@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
@@ -8,9 +9,7 @@ import pandas as pd
 import utils
 from dataset import Dataset
 from node import NaiveNode, RestartNode
-from query import initialize_answer_vars, PmwQuery
-
-from multiprocessing import Pool
+from query import initialize_answer_vars, CountQuery, PmwQuery
 
 
 class QueryEngine(ABC):
@@ -31,7 +30,7 @@ def private_answer_worker(node):
 
 
 class NaiveBinaryQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta, num_threads=4):
+    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
@@ -96,6 +95,8 @@ class NaiveBinaryQueryEngine(QueryEngine):
             insertion_nodes = []
             for tree_idx, tree_nodes in self.naive_binary_insertions_map.items():
                 for node in tree_nodes:
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
                     insertion_nodes.append(node)
 
             insertion_pool = Pool(self.num_threads)
@@ -111,6 +112,8 @@ class NaiveBinaryQueryEngine(QueryEngine):
             deletion_nodes = []
             for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
                 for node in tree_nodes:
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
                     deletion_nodes.append(node)
 
             deletion_pool = Pool(self.num_threads)
@@ -140,7 +143,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
 
 
 class BinaryRestartsQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta, num_threads=4):
+    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
@@ -171,7 +174,8 @@ class BinaryRestartsQueryEngine(QueryEngine):
             # build current node
             self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
                                               delta=self.delta)
-            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i))
+            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i),
+                               num_threads=self.num_threads)
             num_nodes += 1
 
             # add current node to map
@@ -200,6 +204,8 @@ class BinaryRestartsQueryEngine(QueryEngine):
             binary_nodes = []
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
                 for node in tree_nodes:
+                    if tree_idx != current_tree_idx:
+                        node.set_rerun(rerun=False)
                     binary_nodes.append(node)
 
             true_pool = Pool(self.num_threads)
@@ -254,8 +260,17 @@ if __name__ == "__main__":
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
-    num_batches = 10
-    predicates = ['sex == 0 & race == 1', 'sex == 0']
+    num_batches = None
+    predicates = ["sex == 0 & race == 0", "sex == 1 & race == 0",
+                  "sex == 0 & race == 1", "sex == 1 & race == 1",
+                  "sex == 0 & race == 2", "sex == 1 & race == 2",
+                  "sex == 0 & race == 3", "sex == 1 & race == 3",
+                  "sex == 0 & race == 4", "sex == 1 & race == 4",
+                  "sex == 0 & income == 0", "sex == 1 & income == 0",
+                  "sex == 0 & income == 1", "sex == 1 & income == 1",
+                  "sex == 0", "sex == 1",
+                  "race == 0", "race == 1", "race == 2", "race == 3", "race == 4",
+                  "income == 0", "income == 1"]
     num_threads = 8
 
     # run mechanisms on the same dataset NUM_RUNS number of times

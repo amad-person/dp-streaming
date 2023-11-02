@@ -55,7 +55,7 @@ class CountQuery(Query):
         else:
             return [0]
 
-    def get_private_answer(self, ids):
+    def get_private_answer(self, ids, rerun=True):
         if ids is not None:
             true_answer = self.get_true_answer(ids)[0]
             laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
@@ -101,7 +101,7 @@ class PredicateQuery(Query):
         else:
             return [0]
 
-    def get_private_answer(self, ids):
+    def get_private_answer(self, ids, rerun=True):
         if ids is not None:
             true_answer = self.get_true_answer(ids)[0]
             laplace_noise = self.rng.laplace(loc=0, scale=(self.sensitivity / self.epsilon))
@@ -170,9 +170,10 @@ class PmwQuery(Query):
         else:
             return [0] * len(self.predicates)
 
-    def get_private_answer(self, ids):
+    def get_private_answer(self, ids, rerun=True):
         if ids is not None and len(ids) > 0:
-            self._mwem(ids)  # learn histogram using MWEM and generate synthetic dataset
+            if rerun:  # check if previously generated synthetic histogram can't be used
+                self._mwem(ids)  # learn histogram using MWEM and generate synthetic dataset
             answers = []
             for predicate in self.predicates:
                 answers.append(self.synthetic_dataset.query(predicate).shape[0])  # answers from synthetic dataset
