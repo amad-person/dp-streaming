@@ -36,7 +36,7 @@ if __name__ == "__main__":
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
     num_runs = 10
-    org_seed = 1234
+    org_seed = 1000
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
