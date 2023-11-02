@@ -226,18 +226,22 @@ class BinaryRestartsQueryEngine(QueryEngine):
 
 # Testing on the Adult dataset
 if __name__ == "__main__":
-    dataset_name = "adult_small"
+    batch_size = 1000
+    window_size = 3
+    dataset_prefix = "adult_small"
+    dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
+
     time_int = pd.DateOffset(days=1)
     time_int_str = "1day"
-    pmw_encoding_type = "binarized"
-    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
-                                     domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
+    data_encoding_type = "binarized"
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{data_encoding_type}.csv",
+                                     domain_path=f"../data/{dataset_prefix}_{data_encoding_type}_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int,
-                                     hist_repr_type=pmw_encoding_type)
-    dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
+                                     hist_repr_type=data_encoding_type)
+    dataset.save_to_path(f"../data/{dataset_name}_{data_encoding_type}_batched_{time_int_str}.csv")
 
     query_type = "pmw"
     epsilon = 10.0

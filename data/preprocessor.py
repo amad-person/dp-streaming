@@ -118,6 +118,27 @@ def get_random_ins_and_del_times(num_rows, start_date, end_date, datetime_dtype,
     return insertion_times, deletion_times
 
 
+def get_deterministic_ins_and_del_times(num_rows, start_date, batch_size, window_size):
+    num_batches = num_rows // batch_size
+    print(num_batches)
+    insertion_times, deletion_times = [], []
+    for r in range(num_batches):
+        insertion_time = start_date + timedelta(days=r)
+        insertion_times += [insertion_time] * batch_size
+        deletion_time = insertion_time + timedelta(days=window_size)
+        deletion_times += [deletion_time] * batch_size
+
+    # add any remaining rows to the last batch
+    num_remaining_rows = num_rows - (num_batches * batch_size)
+    insertion_time = start_date + timedelta(days=num_batches - 1)
+    insertion_times += [insertion_time] * num_remaining_rows
+    deletion_time = insertion_time + timedelta(days=window_size)
+    deletion_times += [deletion_time] * num_remaining_rows
+
+    assert num_rows == len(insertion_times) and num_rows == len(deletion_times)
+    return insertion_times, deletion_times
+
+
 def get_config_for_adult_dataset(domain, size, enc_type):
     if size == "small":
         if enc_type == "ohe":
@@ -199,7 +220,7 @@ def get_config_for_adult_dataset(domain, size, enc_type):
             }
 
 
-def create_adult_dataset(path, domain_path, size, enc_type):
+def create_adult_dataset(path, domain_path, size, enc_type, batch_size, window_size):
     # read dataset and domain
     df = pd.read_csv(path, na_values='?')
     with open(domain_path, "r") as domain_file:
@@ -226,19 +247,18 @@ def create_adult_dataset(path, domain_path, size, enc_type):
     ht.set_config(config=ht_config)
     df = ht.fit_transform(df)
 
-    # add random insertion and deletion times
+    # add deterministic insertion and deletion times
     start_date = datetime(year=2023, month=1, day=1)
-    end_date = datetime(year=2023, month=12, day=31)
-    insertion_times, deletion_times = get_random_ins_and_del_times(num_rows=df.shape[0],
-                                                                   start_date=start_date,
-                                                                   end_date=end_date,
-                                                                   datetime_dtype="datetime64[D]",
-                                                                   timedelta_dtype="timedelta64[D]")
+    insertion_times, deletion_times = get_deterministic_ins_and_del_times(num_rows=df.shape[0],
+                                                                          start_date=start_date,
+                                                                          batch_size=batch_size,
+                                                                          window_size=window_size)
     df["Insertion Time"] = insertion_times
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./adult_{size}_{enc_type}.csv", index_label="Person ID")
+    df.to_csv(f"./adult_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+              index_label="Person ID")
 
 
 if __name__ == "__main__":
@@ -247,8 +267,12 @@ if __name__ == "__main__":
     adult_size = "small"
     encoding_type = "binarized"
     adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+    batch_size = 1000
+    window_size = 3
 
     create_adult_dataset(path=adult_dataset_path,
                          domain_path=adult_dataset_domain_path,
                          size=adult_size,
-                         enc_type=encoding_type)
+                         enc_type=encoding_type,
+                         batch_size=batch_size,
+                         window_size=window_size)
