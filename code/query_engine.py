@@ -30,7 +30,7 @@ def private_answer_worker(node):
 
 
 class NaiveBinaryQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
+    def __init__(self, dataset, query, epsilon, delta, save_path_prefix, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
@@ -38,6 +38,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
         self.delta = delta
         self.naive_binary_insertions_map = {}  # stream to track insertions
         self.naive_binary_deletions_map = {}  # stream to track deletions
+        self.save_path_prefix = save_path_prefix
         self.num_threads = num_threads
 
     def run(self, num_batches=None):
@@ -136,6 +137,9 @@ class NaiveBinaryQueryEngine(QueryEngine):
             for result in deletion_private_results:
                 private_answer -= result
 
+            np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
+            np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
             true_answers.append(true_answer)
             private_answers.append(private_answer)
 
@@ -143,13 +147,14 @@ class NaiveBinaryQueryEngine(QueryEngine):
 
 
 class BinaryRestartsQueryEngine(QueryEngine):
-    def __init__(self, dataset, query, epsilon, delta, num_threads=8):
+    def __init__(self, dataset, query, epsilon, delta, save_path_prefix, num_threads=8):
         super().__init__()
         self.dataset = dataset
         self.query = query
         self.epsilon = epsilon
         self.delta = delta
         self.binary_restarts_map = {}
+        self.save_path_prefix = save_path_prefix
         self.num_threads = num_threads
 
     def run(self, num_batches=None):
@@ -224,6 +229,9 @@ class BinaryRestartsQueryEngine(QueryEngine):
             for result in private_results:
                 private_answer += result
 
+            np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
+            np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
             true_answers.append(true_answer)
             private_answers.append(private_answer)
 
@@ -255,12 +263,12 @@ if __name__ == "__main__":
     privstr = "eps" + str(epsilon).replace(".", "_")
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
-    num_runs = 3
+    num_runs = 1
     org_seed = 1234
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
-    num_batches = None
+    num_batches = 2
     predicates = ["sex == 0 & race == 0", "sex == 1 & race == 0",
                   "sex == 0 & race == 1", "sex == 1 & race == 1",
                   "sex == 0 & race == 2", "sex == 1 & race == 2",
@@ -281,7 +289,10 @@ if __name__ == "__main__":
 
         print("Running Naive Binary Mechanism")
         nb_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
-        naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query, epsilon, delta, num_threads)
+        naive_binary_query_engine = NaiveBinaryQueryEngine(dataset, nb_query,
+                                                           epsilon, delta,
+                                                           save_path_prefix=f"{exp_save_dir}/run{run}_nb",
+                                                           num_threads=num_threads)
         nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=num_batches)
         print("True Answers:", nb_true_ans.tolist())
         print("Private Answers:", nb_private_ans.tolist())
@@ -290,7 +301,10 @@ if __name__ == "__main__":
 
         print("Running Binary Restarts Mechanism")
         br_query = PmwQuery(dataset=dataset, predicates=predicates, k=2, iterations=25, rng=rng)
-        binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query, epsilon, delta, num_threads)
+        binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query,
+                                                                 epsilon, delta,
+                                                                 save_path_prefix=f"{exp_save_dir}/run{run}_br",
+                                                                 num_threads=num_threads)
         br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches)
         print("True Answers:", br_true_ans.tolist())
         print("Private Answers:", br_private_ans.tolist())
