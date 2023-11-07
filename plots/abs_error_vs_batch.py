@@ -1,26 +1,33 @@
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-
+import yaml
 
 if __name__ == "__main__":
-    batch_size = 1000
-    window_size = 3
-    dataset_name = f"adult_small_batch{batch_size}_window{window_size}"
+    plots_config_path = f"./plots_config.yaml"
+    with open(plots_config_path, "r") as config_file:
+        plots_config = yaml.safe_load(config_file)
 
-    query_type = "pmw"
-    epsilon = 10.0
-    delta = None
+    dataset_prefix = plots_config["dataset_prefix"]
+    batch_size = plots_config["batch_size"]
+    window_size = plots_config["window_size"]
+    dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
+
+    query_type = plots_config["query_type"]
+    epsilon = plots_config["epsilon"]
+    delta = plots_config["delta"]
     privstr = "eps" + str(epsilon).replace(".", "_")
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
-    num_runs = 3
-    org_seed = 1000
+
+    num_runs = plots_config["num_runs"]
+    org_seed = plots_config["org_seed"]
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
 
-    batches = None
+    batches = plots_config["batches"]
 
     # create data for plot
     mechanism_labels, batch_nums, error_values = [], [], []
@@ -29,7 +36,7 @@ if __name__ == "__main__":
         if batches is not None:
             true_ans_path += f"_batches{batches}"
         true_ans_path += ".npz"
-        true_ans = np.load(true_ans_path)['arr_0']
+        true_ans = np.load(true_ans_path)["arr_0"]
         num_batches, num_queries = true_ans.shape
 
         # load error values for Naive Binary
@@ -37,7 +44,7 @@ if __name__ == "__main__":
         if batches is not None:
             nb_priv_ans_path += f"_batches{batches}"
         nb_priv_ans_path += ".npz"
-        nb_priv_ans = np.load(nb_priv_ans_path)['arr_0']
+        nb_priv_ans = np.load(nb_priv_ans_path)["arr_0"]
         for query_idx in range(num_queries):
             query_true_answers = true_ans[:, query_idx]  # query answers are stored in columns
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
@@ -50,7 +57,7 @@ if __name__ == "__main__":
         if batches is not None:
             br_priv_ans_path += f"_batches{batches}"
         br_priv_ans_path += ".npz"
-        br_priv_ans = np.load(br_priv_ans_path)['arr_0']
+        br_priv_ans = np.load(br_priv_ans_path)["arr_0"]
         for query_idx in range(num_queries):
             query_true_answers = true_ans[:, query_idx]
             query_br_answers = br_priv_ans[:, query_idx]
