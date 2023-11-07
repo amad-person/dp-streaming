@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -18,17 +17,27 @@ if __name__ == "__main__":
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
     num_runs = 3
-    org_seed = 1234
+    org_seed = 1000
     exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
+
+    batches = None
 
     # create data for plot
     mechanism_labels, batch_nums, answer_values = [], [], []
     for run in range(num_runs):
-        true_ans = np.load(f"{exp_save_dir}/nb_true_ans_run{run}.npz")['arr_0']
+        true_ans_path = f"{exp_save_dir}/nb_true_ans_run{run}"
+        if batches is not None:
+            true_ans_path += f"_batches{batches}"
+        true_ans_path += ".npz"
+        true_ans = np.load(true_ans_path)['arr_0']
         num_batches, num_queries = true_ans.shape
 
         # load answer values for Naive Binary
-        nb_priv_ans = np.load(f"{exp_save_dir}/nb_private_ans_run{run}.npz")['arr_0']
+        nb_priv_ans_path = f"{exp_save_dir}/nb_private_ans_run{run}"
+        if batches is not None:
+            nb_priv_ans_path += f"_batches{batches}"
+        nb_priv_ans_path += ".npz"
+        nb_priv_ans = np.load(nb_priv_ans_path)['arr_0']
         for query_idx in range(num_queries):
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
             answer_values += query_nb_answers.tolist()
@@ -36,7 +45,11 @@ if __name__ == "__main__":
             batch_nums += list(range(num_batches))
 
         # load answer values for Binary Restarts
-        br_priv_ans = np.load(f"{exp_save_dir}/br_private_ans_run{run}.npz")['arr_0']
+        br_priv_ans_path = f"{exp_save_dir}/br_private_ans_run{run}"
+        if batches is not None:
+            br_priv_ans_path += f"_batches{batches}"
+        br_priv_ans_path += ".npz"
+        br_priv_ans = np.load(br_priv_ans_path)['arr_0']
         for query_idx in range(num_queries):
             query_br_answers = br_priv_ans[:, query_idx]
             answer_values += query_br_answers.tolist()
