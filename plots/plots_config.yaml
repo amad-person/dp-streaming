@@ -1,6 +1,6 @@
 dataset_prefix: "adult_small"
 batch_size: 50
-window_size: 1
+window_size: 3
 query_type: "pmw"
 epsilon: 10.0
 delta: null

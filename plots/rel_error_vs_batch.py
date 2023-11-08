@@ -48,7 +48,7 @@ if __name__ == "__main__":
         for query_idx in range(num_queries):
             query_true_answers = true_ans[:, query_idx]  # query answers are stored in columns
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
-            error_values += (query_nb_answers - query_true_answers).tolist()
+            error_values += (np.abs(query_nb_answers - query_true_answers)/query_true_answers).tolist()
             mechanism_labels += ["Naive Binary"] * num_batches
             batch_nums += list(range(num_batches))
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         for query_idx in range(num_queries):
             query_true_answers = true_ans[:, query_idx]
             query_br_answers = br_priv_ans[:, query_idx]
-            error_values += (query_br_answers - query_true_answers).tolist()
+            error_values += (np.abs(query_br_answers - query_true_answers)/query_true_answers).tolist()
             mechanism_labels += ["Binary Restarts"] * num_batches
             batch_nums += list(range(num_batches))
 
