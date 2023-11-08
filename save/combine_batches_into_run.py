@@ -3,9 +3,10 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    batch_size = 1000
-    window_size = 3
-    dataset_name = f"adult_small_batch{batch_size}_window{window_size}"
+    dataset_prefix = "adult_small"
+    batch_size = 50
+    window_size = 5
+    dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
 
     query_type = "pmw"
     epsilon = 10.0
@@ -13,11 +14,11 @@ if __name__ == "__main__":
     privstr = "eps" + str(epsilon).replace(".", "_")
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
-    num_runs = 1
+    num_runs = 3
     org_seed = 1234
     exp_save_dir = Path(f"./{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
 
-    batches = 2
+    batches = 15
 
     # combine data for each run
     for run in range(num_runs):

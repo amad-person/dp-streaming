@@ -69,7 +69,8 @@ if __name__ == "__main__":
         "Batch Number": batch_nums
     }
     df = pd.DataFrame(data_dict)
-    plt.title(f"Query Type: {query_type}")
+    plt.title(f"Query Type: {query_type}\nBatch Size: {batch_size}\nWindow Size: {window_size}")
     sns.lineplot(data=df, x="Batch Number", y="Answer", hue="Mechanism")
-    plt.savefig(f"{exp_save_dir}/ans_vs_batch.png")
-    plt.show()
+    plt.tight_layout()
+    plt.savefig(f"{exp_save_dir}/ans_vs_batch.png", dpi=1000)
+    # plt.show()
