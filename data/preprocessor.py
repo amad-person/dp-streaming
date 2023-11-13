@@ -245,6 +245,10 @@ def create_adult_dataset(path, domain_path, size, enc_type, batch_size, window_s
                                           bins=domain["hours-per-week"],
                                           ordered=True,
                                           labels=False)
+    elif enc_type == "binarized":
+        # make continuous columns integers
+        if "AGEP" in df.columns:
+            df["AGEP"] = df["AGEP"].astype(int)
 
     # get RDT transformer config based on 'size' and 'enc_type'
     ht_config = get_config_for_adult_dataset(domain, size, enc_type)
@@ -312,7 +316,7 @@ def get_config_for_acs_data_health_ins_dataset(domain, size, enc_type):
             }
 
 
-def create_acs_health_insurance_dataset(domain_path, size, acs_data, enc_type, batch_size, window_size):
+def create_acs_health_ins_dataset(domain_path, size, acs_data, enc_type, batch_size, window_size):
     # read dataset and domain
     df, df_labels, _ = ACSHealthInsurance.df_to_pandas(acs_data)
     df["HINS2"] = df_labels["HINS2"].astype(int)
@@ -330,15 +334,19 @@ def create_acs_health_insurance_dataset(domain_path, size, acs_data, enc_type, b
         # make continuous columns categorical (integers)
         if "AGEP" in df.columns:
             df["AGEP"] = pd.cut(df["AGEP"],
-                               bins=domain["AGEP"],
-                               ordered=True,
-                               labels=False)
+                                bins=domain["AGEP"],
+                                ordered=True,
+                                labels=False)
 
         if "PINCP" in df.columns:
             df["PINCP"] = pd.cut(df["PINCP"],
-                                    bins=domain["PINCP"],
-                                    ordered=True,
-                                    labels=False)
+                                 bins=domain["PINCP"],
+                                 ordered=True,
+                                 labels=False)
+    elif enc_type == "binarized":
+        # make continuous columns integers
+        if "AGEP" in df.columns:
+            df["AGEP"] = df["AGEP"].astype(int)
 
     # get RDT transformer config based on 'size' and 'enc_type'
     ht_config = get_config_for_acs_data_health_ins_dataset(domain, size, enc_type)
@@ -357,7 +365,106 @@ def create_acs_health_insurance_dataset(domain_path, size, acs_data, enc_type, b
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./acs_health_ins_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(f"./acs_public_cov_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+              index_label="Person ID")
+
+
+def get_config_for_acs_data_public_cov_dataset(domain, size, enc_type):
+    if size == "small":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "AGEP": "numerical",
+                    "SEX": "categorical",
+                    "DIS": "categorical",
+                    "DEAR": "categorical",
+                    "DEYE": "categorical",
+                    "DREM": "categorical",
+                    "PUBCOV": "categorical"
+                },
+                "transformers": {
+                    "AGEP": None,
+                    "SEX": OrderedLabelEncoder(order=domain["SEX"]),
+                    "DIS": OrderedLabelEncoder(order=domain["DIS"]),
+                    "DEAR": OrderedLabelEncoder(order=domain["DEAR"]),
+                    "DEYE": OrderedLabelEncoder(order=domain["DEYE"]),
+                    "DREM": OrderedLabelEncoder(order=domain["DREM"]),
+                    "PUBCOV": OrderedLabelEncoder(order=domain["PUBCOV"]),
+                }
+            }
+        elif enc_type == "binarized":
+            return {
+                "sdtypes": {
+                    "AGEP": "numerical",
+                    "SEX": "categorical",
+                    "DIS": "categorical",
+                    "DEAR": "categorical",
+                    "DEYE": "categorical",
+                    "DREM": "categorical",
+                    "PUBCOV": "categorical"
+                },
+                "transformers": {
+                    "AGEP": None,
+                    "SEX": OrderedLabelEncoder(order=domain["SEX"]),
+                    "DIS": OrderedLabelEncoder(order=domain["DIS"]),
+                    "DEAR": OrderedLabelEncoder(order=domain["DEAR"]),
+                    "DEYE": OrderedLabelEncoder(order=domain["DEYE"]),
+                    "DREM": OrderedLabelEncoder(order=domain["DREM"]),
+                    "PUBCOV": OrderedLabelEncoder(order=domain["PUBCOV"]),
+                }
+            }
+
+
+def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_size, window_size):
+    # read dataset and domain
+    df, df_labels, _ = ACSPublicCoverage.df_to_pandas(acs_data)
+    df["PUBCOV"] = df_labels["PUBCOV"].astype(int)
+    with open(domain_path, "r") as domain_file:
+        domain = json.load(domain_file)
+
+    # drop columns not in the domain
+    columns_to_keep = list(domain.keys())
+    df = df[columns_to_keep]
+
+    # remove rows if any of the features are NaN / missing
+    df = df.dropna(how="any")
+
+    if enc_type == "ohe":
+        # make continuous columns categorical (integers)
+        if "AGEP" in df.columns:
+            df["AGEP"] = pd.cut(df["AGEP"],
+                                bins=domain["AGEP"],
+                                ordered=True,
+                                labels=False)
+
+        if "PINCP" in df.columns:
+            df["PINCP"] = pd.cut(df["PINCP"],
+                                 bins=domain["PINCP"],
+                                 ordered=True,
+                                 labels=False)
+    elif enc_type == "binarized":
+        # make continuous columns integers
+        if "AGEP" in df.columns:
+            df["AGEP"] = df["AGEP"].astype(int)
+
+    # get RDT transformer config based on 'size' and 'enc_type'
+    ht_config = get_config_for_acs_data_public_cov_dataset(domain, size, enc_type)
+    ht = HyperTransformer()
+    ht.set_config(config=ht_config)
+    df = ht.fit_transform(df)
+
+    # add deterministic insertion and deletion times
+    start_date = datetime(year=2023, month=1, day=1)
+    insertion_times, deletion_times = get_deterministic_ins_and_del_times(num_rows=df.shape[0],
+                                                                          start_date=start_date,
+                                                                          batch_size=batch_size,
+                                                                          window_size=window_size)
+
+    df["Insertion Time"] = insertion_times
+    df["Deletion Time"] = deletion_times
+
+    # save processed dataset
+    df.to_csv(f"./acs_public_cov_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
@@ -366,18 +473,18 @@ if __name__ == "__main__":
                                 horizon='1-Year',
                                 survey='person')
     acs_data = data_source.get_data(states=["NY"], download=True)
-    acs_data_subset = "health_ins"
+    acs_data_subset = "public_cov"
     acs_data_size = "small"
     encoding_type = "binarized"
     batch_size = 1000
     window_size = 3
     acs_data_domain_path = f"./acs_data_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-    create_acs_health_insurance_dataset(domain_path=acs_data_domain_path,
-                                        size=acs_data_size,
-                                        acs_data=acs_data,
-                                        enc_type=encoding_type,
-                                        batch_size=1000,
-                                        window_size=3)
+    create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+                                  size=acs_data_size,
+                                  acs_data=acs_data,
+                                  enc_type=encoding_type,
+                                  batch_size=batch_size,
+                                  window_size=window_size)
 
     # adult_dataset_path = f"./adult.csv"
     # adult_size = "small"
