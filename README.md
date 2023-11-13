@@ -30,6 +30,8 @@ A compatible dataset should have the following columns:
 1. Insertion Time: This column contains the timestamp of when the record was inserted into the dataset. 
 1. Deletion Time: This column contains the timestamp of when the record was removed from the dataset. 
 
+Datasets currently supported: Adult Income, ACS datasets provided by the [`folktables`](https://github.com/socialfoundations/folktables/tree/main) Python package, and randomly generated toy datasets. See `data/preprocessor.py` for more details.
+
 ### Query Engine
 
 The query engine encapsulates how the dataset is processed as a stream. A query engine takes a Query and a Dataset as input, and returns answers according to the desired time interval (e.g., release answers each day). Each query engine defines a tree representation for the stream. This representation is in turn determined by the type of node used by the tree.   
