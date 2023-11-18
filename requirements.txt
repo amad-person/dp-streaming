@@ -1,7 +1,8 @@
 folktables==0.0.12
 matplotlib==3.8.0
-numpy==1.26.2
-pandas==2.1.3
+numpy~=1.26.0
+pandas~=2.1.1
 PyYAML==6.0.1
 rdt==1.7.0
 seaborn==0.13.0
+dill~=0.3.7

@@ -1,10 +1,12 @@
+import os.path
+
 import numpy as np
 import pandas as pd
 
 
 def get_first_non_zero_lsb(binary_num):
     binary_str = str(binary_num)[::-1]
-    return binary_str.index('1')
+    return binary_str.index("1")
 
 
 def get_binary_repr(num):
@@ -22,7 +24,7 @@ def get_tree_height(num):
 
 def dataset_to_ohe(df, domain):
     # convert all columns to one-hot encoding
-    df[df.columns] = df[df.columns].astype('category')
+    df[df.columns] = df[df.columns].astype("category")
     for feature in domain.keys():
         feature_domain = domain[feature]
         if isinstance(feature_domain, int):
@@ -101,7 +103,7 @@ def binary(d, indices):
 
 
 # source: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl/blob/master/src/gosper.jl
-def binary_generator(d, indices, init_value=0):
+def binary_generator(indices, init_value=0):
     for state in range(2 ** len(indices)):
         sub_binary_number = init_value
         temp_state = state
@@ -142,14 +144,20 @@ def hadamard_basis_vector(index, dim):
 
 # source: https://github.com/mrtzh/PrivateMultiplicativeWeights.jl/blob/master/src/parities.jl
 def get_parity_queries(dim, k):
-    parities = set()
-    parities.add(0)
-    for seq in gosper(dim, k):
-        for alpha in binary(dim, seq):
-            parities.add(alpha + 1)
-    parities = sorted(parities)
-    queries = [hadamard_basis_vector(parity, dim) for parity in parities]
-    return np.array(queries)
+    parity_queries_filepath = f"../caching/parity_queries_dim{dim}_k{k}"
+    if os.path.exists(parity_queries_filepath):
+        queries = np.load(f"{parity_queries_filepath}.npz")["arr_0"]
+    else:
+        parities = set()
+        parities.add(0)
+        for seq in gosper(dim, k):
+            for alpha in binary(dim, seq):
+                parities.add(alpha + 1)
+        parities = sorted(parities)
+        queries = [hadamard_basis_vector(parity, dim) for parity in parities]
+        queries = np.array(queries)
+        np.savez(parity_queries_filepath, queries)
+    return queries
 
 
 # Testing

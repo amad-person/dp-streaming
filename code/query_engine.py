@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import dill
 
 import utils
 from dataset import Dataset
@@ -41,12 +42,28 @@ class NaiveBinaryQueryEngine(QueryEngine):
         self.save_path_prefix = save_path_prefix
         self.num_threads = num_threads
 
-    def run(self, num_batches=None):
+    def run(self, num_batches=None, start_from_batch_num=None):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
             if num_batches is not None and i == num_batches:
                 break
+
+            # load saved answers until run_from_batch number is reached
+            if start_from_batch_num is not None and i < start_from_batch_num:
+                saved_true_ans = np.load(f"{self.save_path_prefix}_true_ans_batch{i}.npz")["arr_0"]
+                true_answers.append(saved_true_ans)
+                saved_private_ans = np.load(f"{self.save_path_prefix}_private_ans_batch{i}.npz")["arr_0"]
+                private_answers.append(saved_private_ans)
+                continue
+
+            # load state from checkpoint
+            if start_from_batch_num is not None and i == start_from_batch_num:
+                prev_batch_num = start_from_batch_num - 1
+                with open(f"{self.save_path_prefix}_checkpt_batch{prev_batch_num}.pkl", "rb") as f:
+                    checkpt = dill.load(f)
+                    self.naive_binary_insertions_map = checkpt["naive_binary_insertions_map"]
+                    self.naive_binary_deletions_map = checkpt["naive_binary_deletions_map"]
 
             print("Batch number:", i)
             print("Insertion IDs:", ins_ids)
@@ -137,8 +154,16 @@ class NaiveBinaryQueryEngine(QueryEngine):
             for result in deletion_private_results:
                 private_answer -= result
 
+            # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
             np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save state into checkpoint file
+            with open(f"{self.save_path_prefix}_checkpt_batch{i}.pkl", "wb") as f:
+                dill.dump({
+                    "naive_binary_insertions_map": self.naive_binary_insertions_map,
+                    "naive_binary_deletions_map": self.naive_binary_deletions_map
+                }, f)
 
             true_answers.append(true_answer)
             private_answers.append(private_answer)
@@ -157,12 +182,27 @@ class BinaryRestartsQueryEngine(QueryEngine):
         self.save_path_prefix = save_path_prefix
         self.num_threads = num_threads
 
-    def run(self, num_batches=None):
+    def run(self, num_batches=None, start_from_batch_num=None):
         true_answers, private_answers = [], []
         num_nodes, current_tree_idx = 0, 0
         for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
             if num_batches is not None and i == num_batches:
                 break
+
+            # load saved answers until run_from_batch number is reached
+            if start_from_batch_num is not None and i < start_from_batch_num:
+                saved_true_ans = np.load(f"{self.save_path_prefix}_true_ans_batch{i}.npz")["arr_0"]
+                true_answers.append(saved_true_ans)
+                saved_private_ans = np.load(f"{self.save_path_prefix}_private_ans_batch{i}.npz")["arr_0"]
+                private_answers.append(saved_private_ans)
+                continue
+
+            # load state from checkpoint
+            if start_from_batch_num is not None and i == start_from_batch_num:
+                prev_batch_num = start_from_batch_num - 1
+                with open(f"{self.save_path_prefix}_checkpt_batch{prev_batch_num}.pkl", "rb") as f:
+                    checkpt = dill.load(f)
+                    self.binary_restarts_map = checkpt["binary_restarts_map"]
 
             print("Batch number:", i)
             print("Insertion IDs:", ins_ids)
@@ -229,8 +269,15 @@ class BinaryRestartsQueryEngine(QueryEngine):
             for result in private_results:
                 private_answer += result
 
+            # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
             np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save state into checkpoint file
+            with open(f"{self.save_path_prefix}_checkpt_batch{i}.pkl", "wb") as f:
+                dill.dump({
+                    "binary_restarts_map": self.binary_restarts_map,
+                }, f)
 
             true_answers.append(true_answer)
             private_answers.append(private_answer)

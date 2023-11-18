@@ -36,7 +36,7 @@ if __name__ == "__main__":
         if batches is not None:
             true_ans_path += f"_batches{batches}"
         true_ans_path += ".npz"
-        true_ans = np.load(true_ans_path)['arr_0']
+        true_ans = np.load(true_ans_path)["arr_0"]
         num_batches, num_queries = true_ans.shape
 
         # load answer values for Naive Binary
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         if batches is not None:
             nb_priv_ans_path += f"_batches{batches}"
         nb_priv_ans_path += ".npz"
-        nb_priv_ans = np.load(nb_priv_ans_path)['arr_0']
+        nb_priv_ans = np.load(nb_priv_ans_path)["arr_0"]
         for query_idx in range(num_queries):
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
             answer_values += query_nb_answers.tolist()
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         if batches is not None:
             br_priv_ans_path += f"_batches{batches}"
         br_priv_ans_path += ".npz"
-        br_priv_ans = np.load(br_priv_ans_path)['arr_0']
+        br_priv_ans = np.load(br_priv_ans_path)["arr_0"]
         for query_idx in range(num_queries):
             query_br_answers = br_priv_ans[:, query_idx]
             answer_values += query_br_answers.tolist()
