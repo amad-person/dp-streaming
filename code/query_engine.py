@@ -285,6 +285,70 @@ class BinaryRestartsQueryEngine(QueryEngine):
         return np.array(true_answers), np.array(private_answers)
 
 
+class IntervalRestartsQueryEngine(QueryEngine):
+    def __init__(self, dataset, query, epsilon, delta, save_path_prefix, num_threads=8):
+        super().__init__()
+        self.dataset = dataset
+        self.query = query
+        self.epsilon = epsilon
+        self.delta = delta
+        self.interval_restarts_map = {}
+        self.save_path_prefix = save_path_prefix
+        self.num_threads = num_threads
+
+    def run(self, num_batches=None, start_from_batch_num=None):
+        true_answers, private_answers = [], []
+        num_nodes, current_tree_idx = 0, 0
+        for i, (ins_ids, del_ids) in enumerate(self.dataset.get_batches()):
+            if num_batches is not None and i == num_batches:
+                break
+
+            # load saved answers until run_from_batch number is reached
+            if start_from_batch_num is not None and i < start_from_batch_num:
+                saved_true_ans = np.load(f"{self.save_path_prefix}_true_ans_batch{i}.npz")["arr_0"]
+                true_answers.append(saved_true_ans)
+                saved_private_ans = np.load(f"{self.save_path_prefix}_private_ans_batch{i}.npz")["arr_0"]
+                private_answers.append(saved_private_ans)
+                continue
+
+            # load state from checkpoint
+            if start_from_batch_num is not None and i == start_from_batch_num:
+                prev_batch_num = start_from_batch_num - 1
+                with open(f"{self.save_path_prefix}_checkpt_batch{prev_batch_num}.pkl", "rb") as f:
+                    checkpt = dill.load(f)
+                    self.interval_restarts_map = checkpt["interval_restarts_map"]
+
+            print("Batch number:", i)
+            print("Insertion IDs:", ins_ids)
+            print("Deletion IDs:", del_ids)
+
+            node_i = i + 1
+
+            # build current node
+
+            # add current node to map
+
+            # propagate deletions to all nodes
+
+            # get answers
+            true_answer, private_answer = 0, 0
+
+            # save answers for current batch
+            np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
+            np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save state into checkpoint file
+            with open(f"{self.save_path_prefix}_checkpt_batch{i}.pkl", "wb") as f:
+                dill.dump({
+                    "interval_restarts_map": self.interval_restarts_map,
+                }, f)
+
+            true_answers.append(true_answer)
+            private_answers.append(private_answer)
+
+        return np.array(true_answers), np.array(private_answers)
+
+
 # Testing on the Adult dataset
 if __name__ == "__main__":
     batch_size = 1000
