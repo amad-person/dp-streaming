@@ -162,12 +162,14 @@ def get_config_for_adult_dataset(domain, size, enc_type):
         elif enc_type == "binarized":
             return {
                 "sdtypes": {
+                    # "age": "numerical",
                     "race": "categorical",
                     "sex": "categorical",
                     "hours-per-week": "numerical",
                     "income": "categorical"
                 },
                 "transformers": {
+                    # "age": None,
                     "race": OrderedLabelEncoder(order=domain["race"]),
                     "sex": OrderedLabelEncoder(order=domain["sex"]),
                     "hours-per-week": None,
@@ -211,6 +213,61 @@ def get_config_for_adult_dataset(domain, size, enc_type):
                     "age": None,
                     "workclass": OrderedLabelEncoder(order=domain["workclass"]),
                     "occupation": OrderedLabelEncoder(order=domain["occupation"]),
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+    elif size == "full":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "age": "categorical",
+                    "workclass": "categorical",
+                    "education": "categorical",
+                    "educational-num": "categorical",
+                    "occupation": "categorical",
+                    "relationship": "categorical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "categorical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "workclass": OrderedLabelEncoder(order=domain["workclass"]),
+                    "education": OrderedLabelEncoder(order=domain["education"]),
+                    "educational-num": OrderedLabelEncoder(order=domain["educational-num"]),
+                    "occupation": OrderedLabelEncoder(order=domain["occupation"]),
+                    "relationship": OrderedLabelEncoder(order=domain["relationship"]),
+                    "race": OrderedLabelEncoder(order=domain["race"]),
+                    "sex": OrderedLabelEncoder(order=domain["sex"]),
+                    "hours-per-week": None,
+                    "income": OrderedLabelEncoder(order=domain["income"])
+                }
+            }
+        elif enc_type == "binarized":
+            return {
+                "sdtypes": {
+                    "age": "numerical",
+                    "workclass": "categorical",
+                    "education": "categorical",
+                    "educational-num": "categorical",
+                    "occupation": "categorical",
+                    "relationship": "categorical",
+                    "race": "categorical",
+                    "sex": "categorical",
+                    "hours-per-week": "numerical",
+                    "income": "categorical"
+                },
+                "transformers": {
+                    "age": None,
+                    "workclass": OrderedLabelEncoder(order=domain["workclass"]),
+                    "education": OrderedLabelEncoder(order=domain["education"]),
+                    "educational-num": OrderedLabelEncoder(order=domain["educational-num"]),
+                    "occupation": OrderedLabelEncoder(order=domain["occupation"]),
+                    "relationship": OrderedLabelEncoder(order=domain["relationship"]),
                     "race": OrderedLabelEncoder(order=domain["race"]),
                     "sex": OrderedLabelEncoder(order=domain["sex"]),
                     "hours-per-week": None,
@@ -275,7 +332,7 @@ def get_config_for_acs_data_health_ins_dataset(domain, size, enc_type):
         if enc_type == "ohe":
             return {
                 "sdtypes": {
-                    "AGEP": "numerical",
+                    "AGEP": "categorical",
                     "SEX": "categorical",
                     "DIS": "categorical",
                     "DEAR": "categorical",
@@ -314,6 +371,71 @@ def get_config_for_acs_data_health_ins_dataset(domain, size, enc_type):
                     "HINS2": OrderedLabelEncoder(order=domain["HINS2"]),
                 }
             }
+    elif size == "medium":
+        if enc_type == "ohe":
+            pass
+        elif enc_type == "binarized":
+            pass
+    elif size == "full":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "AGEP": "numerical",
+                    "SCHL": "categorical",
+                    "MAR": "categorical",
+                    "SEX": "categorical",
+                    "DIS": "categorical",
+                    "ESP": "categorical",
+                    "CIT": "categorical",
+                    "MIG": "categorical",
+                    "MIL": "categorical",
+                    "ANC": "categorical",
+                    "NATIVITY": "categorical",
+                    "DEAR": "categorical",
+                    "DEYE": "categorical",
+                    "DREM": "categorical",
+                    "RACAIAN": "categorical",
+                    "RACASN": "categorical",
+                    "RACBLK": "categorical",
+                    "RACNH": "categorical",
+                    "RACPI": "categorical",
+                    "RACSOR": "categorical",
+                    "RACWHT": "categorical",
+                    "PINCP": "numerical",
+                    "ESR": "categorical",
+                    "FER": "categorical",
+                    "HINS2": "categorical"
+                },
+                "transformers": {
+                    "AGEP": None,
+                    "SCHL": OrderedLabelEncoder(order=domain["SCHL"]),
+                    "MAR" : OrderedLabelEncoder(order=domain["MAR"]),
+                    "SEX": OrderedLabelEncoder(order=domain["SEX"]),
+                    "DIS": OrderedLabelEncoder(order=domain["DIS"]),
+                    "ESP": OrderedLabelEncoder(order=domain["ESP"]),
+                    "CIT": OrderedLabelEncoder(order=domain["CIT"]),
+                    "MIG": OrderedLabelEncoder(order=domain["MIG"]),
+                    "MIL": OrderedLabelEncoder(order=domain["MIL"]),
+                    "ANC": OrderedLabelEncoder(order=domain["ANC"]),
+                    "NATIVITY": OrderedLabelEncoder(order=domain["NATIVITY"]),
+                    "DEAR": OrderedLabelEncoder(order=domain["DEAR"]),
+                    "DEYE": OrderedLabelEncoder(order=domain["DEYE"]),
+                    "DREM": OrderedLabelEncoder(order=domain["DREM"]),
+                    "RACAIAN": OrderedLabelEncoder(order=domain["RACAIAN"]),
+                    "RACASN": OrderedLabelEncoder(order=domain["RACASN"]),
+                    "RACBLK": OrderedLabelEncoder(order=domain["RACBLK"]),
+                    "RACNH": OrderedLabelEncoder(order=domain["RACNH"]),
+                    "RACPI": OrderedLabelEncoder(order=domain["RACPI"]),
+                    "RACSOR": OrderedLabelEncoder(order=domain["RACSOR"]),
+                    "RACWHT": OrderedLabelEncoder(order=domain["RACWHT"]),
+                    "PINCP": None,
+                    "ESR": OrderedLabelEncoder(order=domain["ESR"]),
+                    "FER": OrderedLabelEncoder(order=domain["FER"]),
+                    "HINS2": OrderedLabelEncoder(order=domain["HINS2"]),
+                }
+            }
+        elif enc_type == "binarized":
+            pass
 
 
 def create_acs_health_ins_dataset(domain_path, size, acs_data, enc_type, batch_size, window_size):
@@ -348,6 +470,9 @@ def create_acs_health_ins_dataset(domain_path, size, acs_data, enc_type, batch_s
         if "AGEP" in df.columns:
             df["AGEP"] = df["AGEP"].astype(int)
 
+        if "PINCP" in df.columns:
+            df["PINCP"] = df["PINCP"].astype(int)
+
     # get RDT transformer config based on 'size' and 'enc_type'
     ht_config = get_config_for_acs_data_health_ins_dataset(domain, size, enc_type)
     ht = HyperTransformer()
@@ -365,7 +490,7 @@ def create_acs_health_ins_dataset(domain_path, size, acs_data, enc_type, batch_s
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./acs_public_cov_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(f"./acs_health_ins_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
@@ -413,6 +538,57 @@ def get_config_for_acs_data_public_cov_dataset(domain, size, enc_type):
                     "PUBCOV": OrderedLabelEncoder(order=domain["PUBCOV"]),
                 }
             }
+    elif size == "medium":
+        if enc_type == "ohe":
+            pass
+        elif enc_type == "binarized":
+            pass
+    elif size == "full":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "AGEP": "categorical",
+                    "SCHL": "categorical",
+                    "MAR": "categorical",
+                    "SEX": "categorical",
+                    "DIS": "categorical",
+                    "ESP": "categorical",
+                    "CIT": "categorical",
+                    "MIG": "categorical",
+                    "MIL": "categorical",
+                    "ANC": "categorical",
+                    "NATIVITY": "categorical",
+                    "DEAR": "categorical",
+                    "DEYE": "categorical",
+                    "DREM": "categorical",
+                    "PINCP": "categorical",
+                    "ESR": "categorical",
+                    "FER": "categorical",
+                    "PUBCOV": "categorical"
+                },
+                "transformers": {
+                    "AGEP": None,
+                    "SCHL": OrderedLabelEncoder(order=domain["SCHL"]),
+                    "MAR" : OrderedLabelEncoder(order=domain["MAR"]),
+                    "SEX": OrderedLabelEncoder(order=domain["SEX"]),
+                    "DIS": OrderedLabelEncoder(order=domain["DIS"]),
+                    "ESP": OrderedLabelEncoder(order=domain["ESP"]),
+                    "CIT": OrderedLabelEncoder(order=domain["CIT"]),
+                    "MIG": OrderedLabelEncoder(order=domain["MIG"]),
+                    "MIL": OrderedLabelEncoder(order=domain["MIL"]),
+                    "ANC": OrderedLabelEncoder(order=domain["ANC"]),
+                    "NATIVITY": OrderedLabelEncoder(order=domain["NATIVITY"]),
+                    "DEAR": OrderedLabelEncoder(order=domain["DEAR"]),
+                    "DEYE": OrderedLabelEncoder(order=domain["DEYE"]),
+                    "DREM": OrderedLabelEncoder(order=domain["DREM"]),
+                    "PINCP": None,
+                    "ESR": OrderedLabelEncoder(order=domain["ESR"]),
+                    "FER": OrderedLabelEncoder(order=domain["FER"]),
+                    "PUBCOV": OrderedLabelEncoder(order=domain["PUBCOV"]),
+                }
+            }
+        elif enc_type == "binarized":
+            pass
 
 
 def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_size, window_size):
@@ -447,6 +623,9 @@ def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_s
         if "AGEP" in df.columns:
             df["AGEP"] = df["AGEP"].astype(int)
 
+        if "PINCP" in df.columns:
+            df["PINCP"] = df["PINCP"].astype(int)
+
     # get RDT transformer config based on 'size' and 'enc_type'
     ht_config = get_config_for_acs_data_public_cov_dataset(domain, size, enc_type)
     ht = HyperTransformer()
@@ -469,32 +648,32 @@ def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_s
 
 
 if __name__ == "__main__":
-    data_source = ACSDataSource(survey_year='2018',
-                                horizon='1-Year',
-                                survey='person')
-    acs_data = data_source.get_data(states=["NY"], download=True)
-    acs_data_subset = "public_cov"
-    acs_data_size = "small"
-    encoding_type = "binarized"
-    batch_size = 1000
-    window_size = 3
-    acs_data_domain_path = f"./acs_data_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-    create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
-                                  size=acs_data_size,
-                                  acs_data=acs_data,
-                                  enc_type=encoding_type,
-                                  batch_size=batch_size,
-                                  window_size=window_size)
-
-    # adult_dataset_path = f"./adult.csv"
-    # adult_size = "small"
-    # encoding_type = "binarized"
-    # adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+    # data_source = ACSDataSource(survey_year='2018',
+    #                             horizon='1-Year',
+    #                             survey='person')
+    # acs_data = data_source.get_data(states=["NY"], download=True)
+    # acs_data_subset = "public_cov"
+    # acs_data_size = "full"
+    # encoding_type = "ohe"
     # batch_size = 1000
     # window_size = 3
-    # create_adult_dataset(path=adult_dataset_path,
-    #                      domain_path=adult_dataset_domain_path,
-    #                      size=adult_size,
-    #                      enc_type=encoding_type,
-    #                      batch_size=batch_size,
-    #                      window_size=window_size)
+    # acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
+    # create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+    #                               size=acs_data_size,
+    #                               acs_data=acs_data,
+    #                               enc_type=encoding_type,
+    #                               batch_size=batch_size,
+    #                               window_size=window_size)
+
+    adult_dataset_path = f"./adult.csv"
+    adult_size = "full"
+    encoding_type = "ohe"
+    adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+    batch_size = 1000
+    window_size = 3
+    create_adult_dataset(path=adult_dataset_path,
+                         domain_path=adult_dataset_domain_path,
+                         size=adult_size,
+                         enc_type=encoding_type,
+                         batch_size=batch_size,
+                         window_size=window_size)

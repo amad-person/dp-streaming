@@ -1,7 +1,14 @@
+import itertools
+import math
 import os.path
 
+import networkx as nx
 import numpy as np
 import pandas as pd
+from disjoint_set import DisjointSet
+from mbi import FactoredInference, Domain, Dataset
+from scipy import sparse
+from scipy.special import logsumexp
 
 
 def get_first_non_zero_lsb(binary_num):
@@ -160,18 +167,182 @@ def get_parity_queries(dim, k):
     return queries
 
 
-# Testing
-if __name__ == "__main__":
-    dummy_df = pd.DataFrame({
-        "age": [2, 15, 19, 25, 20, 34, 18, 55],
-        "sex": [1, 0, 1, 1, 0, 1, 0, 0]
-    })
-    dummy_domain = {
-        "age": "Binarized",
-        "sex": ["Male", "Female"]
-    }
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/cdp2adp.py
+def cdp_delta(rho, eps):
+    assert rho >= 0
+    assert eps >= 0
+    if rho == 0:
+        return 0  # degenerate case
 
-    enc_df = dataset_to_binarized(df=dummy_df, domain=dummy_domain)
-    dec_df = binarized_to_dataset(enc_df, domain=dummy_domain)
+    # search for best alpha
+    # Note that any alpha in (1, infty) yields a valid upper bound on delta
+    # Thus if this search is slightly "incorrect" it will only result in larger delta (still valid)
+    # This code has two "hacks".
+    # First the binary search is run for a pre-specified length.
+    # 1000 iterations should be sufficient to converge to a good solution.
+    # Second we set a minimum value of alpha to avoid numerical stability issues.
+    # Note that the optimal alpha is at least (1 + eps/rho)/2. Thus, we only hit this constraint
+    # when eps <= rho or close to it. This is not an interesting parameter regime, as you will
+    # inherently get large delta in this regime.
+    amin = 1.01  # don't let alpha be too small, due to numerical stability
+    amax = (eps + 1) / (2 * rho) + 2
+    for i in range(1000):  # should be enough iterations
+        alpha = (amin + amax) / 2
+        derivative = (2 * alpha - 1) * rho - eps + math.log1p(-1.0 / alpha)
+        if derivative < 0:
+            amin = alpha
+        else:
+            amax = alpha
+    # now calculate delta
+    delta = math.exp((alpha - 1) * (alpha * rho - eps) + alpha * math.log1p(-1 / alpha)) / (alpha - 1.0)
+    return min(delta, 1.0)  # delta <=1 always
 
-    assert np.all(dummy_df.to_numpy() == dec_df.to_numpy())
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/cdp2adp.py
+def cdp_rho(eps, delta):
+    assert eps >= 0
+    assert delta > 0
+    if delta >= 1:
+        return 0.0  # if delta >= 1 anything goes
+    rhomin = 0.0  # maintain cdp_delta(rho,eps) <= delta
+    rhomax = eps + 1  # maintain cdp_delta(rhomax,eps) > delta
+    for i in range(1000):
+        rho = (rhomin + rhomax) / 2
+        if cdp_delta(rho, eps) <= delta:
+            rhomin = rho
+        else:
+            rhomax = rho
+    return rhomin
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def MST(data, epsilon, delta):
+    rho = cdp_rho(epsilon, delta)
+    sigma = np.sqrt(3 / (2 * rho))
+    cliques = [(col,) for col in data.domain]
+    log1 = measure(data, cliques, sigma)
+    data, log1, undo_compress_fn = compress_domain(data, log1)
+    cliques = select(data, rho / 3.0, log1)
+    log2 = measure(data, cliques, sigma)
+    engine = FactoredInference(data.domain, iters=5000)
+    est = engine.estimate(log1 + log2)
+    synth = est.synthetic_data(rows=len(data.df))
+    return undo_compress_fn(synth)
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def measure(data, cliques, sigma, weights=None):
+    if weights is None:
+        weights = np.ones(len(cliques))
+    weights = np.array(weights) / np.linalg.norm(weights)
+    measurements = []
+    for proj, wgt in zip(cliques, weights):
+        x = data.project(proj).datavector()
+        y = x + np.random.normal(loc=0, scale=sigma / wgt, size=x.size)
+        Q = sparse.eye(x.size)
+        measurements.append((Q, y, sigma / wgt, proj))
+    return measurements
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def compress_domain(data, measurements):
+    supports = {}
+    new_measurements = []
+    for Q, y, sigma, proj in measurements:
+        col = proj[0]
+        sup = y >= 3 * sigma
+        supports[col] = sup
+        if supports[col].sum() == y.size:
+            new_measurements.append((Q, y, sigma, proj))
+        else:  # need to re-express measurement over the new domain
+            y2 = np.append(y[sup], y[~sup].sum())
+            I2 = np.ones(y2.size)
+            I2[-1] = 1.0 / np.sqrt(y.size - y2.size + 1.0)
+            y2[-1] /= np.sqrt(y.size - y2.size + 1.0)
+            I2 = sparse.diags(I2)
+            new_measurements.append((I2, y2, sigma, proj))
+    undo_compress_fn = lambda data: reverse_data(data, supports)
+    return transform_data(data, supports), new_measurements, undo_compress_fn
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def exponential_mechanism(q, eps, sensitivity, prng=np.random, monotonic=False):
+    coef = 1.0 if monotonic else 0.5
+    scores = coef * eps / sensitivity * q
+    probas = np.exp(scores - logsumexp(scores))
+    return prng.choice(q.size, p=probas)
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def select(data, rho, measurement_log, cliques=[]):
+    engine = FactoredInference(data.domain, iters=1000)
+    est = engine.estimate(measurement_log)
+
+    weights = {}
+    candidates = list(itertools.combinations(data.domain.attrs, 2))
+    for a, b in candidates:
+        xhat = est.project([a, b]).datavector()
+        x = data.project([a, b]).datavector()
+        weights[a, b] = np.linalg.norm(x - xhat, 1)
+
+    T = nx.Graph()
+    T.add_nodes_from(data.domain.attrs)
+    ds = DisjointSet()
+
+    for e in cliques:
+        T.add_edge(*e)
+        ds.union(*e)
+
+    r = len(list(nx.connected_components(T)))
+    epsilon = np.sqrt(8 * rho / (r - 1))
+    for i in range(r - 1):
+        candidates = [e for e in candidates if not ds.connected(*e)]
+        wgts = np.array([weights[e] for e in candidates])
+        idx = exponential_mechanism(wgts, epsilon, sensitivity=1.0)
+        e = candidates[idx]
+        T.add_edge(*e)
+        ds.union(*e)
+
+    return list(T.edges)
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def transform_data(data, supports):
+    df = data.df.copy()
+    newdom = {}
+    for col in data.domain:
+        support = supports[col]
+        size = support.sum()
+        newdom[col] = int(size)
+        if size < support.size:
+            newdom[col] += 1
+        mapping = {}
+        idx = 0
+        for i in range(support.size):
+            mapping[i] = size
+            if support[i]:
+                mapping[i] = idx
+                idx += 1
+        assert idx == size
+        df[col] = df[col].map(mapping)
+    newdom = Domain.fromdict(newdom)
+    return Dataset(df, newdom)
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mst.py
+def reverse_data(data, supports):
+    df = data.df.copy()
+    newdom = {}
+    for col in data.domain:
+        support = supports[col]
+        mx = support.sum()
+        newdom[col] = int(support.size)
+        idx, extra = np.where(support)[0], np.where(~support)[0]
+        mask = df[col] == mx
+        if extra.size == 0:
+            pass
+        else:
+            df.loc[mask, col] = np.random.choice(extra, mask.sum())
+        df.loc[~mask, col] = idx[df.loc[~mask, col]]
+    newdom = Domain.fromdict(newdom)
+    return Dataset(df, newdom)

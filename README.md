@@ -16,7 +16,8 @@ A query object encapsulates the desired privacy parameters, sensitivity, and the
 The following queries are currently supported:
 1. Count Query: Return the number of records in the dataset.
 1. Predicate Query: Return the number of records in the dataset that satisfy the specified predicate (e.g., number of people who are 25 years old).
-1. PMW Query (In Progress): Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set.
+1. PMW Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MWEM algorithm to learn the synthetic data distribution.
+1. MST Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MST algorithm to learn the synthetic data distribution.
 
 You can define your own queries by extending the base `Query` class. Your class should contain the following methods:
 1. `set_privacy_parameters()`: Update the privacy parameters (epsilon, delta) for the query. This is useful when you want to change the privacy parameters specified during query initialization. 
@@ -53,3 +54,8 @@ The following nodes are currently supported:
 ![ans_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Fans_vs_batch.png)
 
 ![avg_error_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Favg_error_vs_batch.png)
+
+## Credits
+
+1. https://github.com/mrtzh/PrivateMultiplicativeWeights.jl
+2. https://github.com/ryan112358/private-pgm
