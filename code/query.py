@@ -286,22 +286,19 @@ class MstQuery(Query):
     """
     Generates a synthetic dataset using k-way predicates for the specified dataset, and
     returns the answers for predicates using the synthetic dataset.
-    Uses the MST algorithm to generate the synthetic dataset.
+    Uses the MST algorithm to generate the synthetic dataset. MST is workload-agnostic.
     Depends on the private-pgm package: https://github.com/ryan112358/private-pgm
     """
 
-    def __init__(self, dataset=None, predicates=None, k=None,
+    def __init__(self, dataset=None, predicates=None,
                  sensitivity=None, epsilon=None, delta=1e-9,
                  rng=None):
         super().__init__()
         self.dataset = dataset
         self.predicates = predicates
-        self.k = k
         self.mst_dataset = None
         self.mst_domain = None
         self._create_mst_domain()
-        self.workload = None
-        self._create_workload()
         self.sensitivity = sensitivity
         self.epsilon = epsilon
         self.delta = delta
@@ -349,12 +346,6 @@ class MstQuery(Query):
                 mst_domain_dict[feature] = len(feature_domain)  # number of categories for discrete variable
         self.mst_domain = Domain.fromdict(mst_domain_dict)
 
-    def _create_workload(self):
-        # create MST compatible workload
-        workload = list(combinations(self.mst_domain, self.k))
-        workload = [cl for cl in workload if self.mst_domain.size(cl) <= 10000]
-        self.workload = workload
-
     def _mst(self, ids):
         # create MST compatible dataset with selected IDs
         self.mst_dataset = Dataset(df=self.dataset.select_rows_from_ids(ids),
@@ -364,10 +355,88 @@ class MstQuery(Query):
         self.synthetic_dataset = utils.MST(self.mst_dataset, self.epsilon, self.delta).df
 
 
+class MwemPgmQuery(Query):
+    """
+    Generates a synthetic dataset using k-way predicates for the specified dataset, and
+    returns the answers for predicates using the synthetic dataset.
+    Uses the MWEM-PGM algorithm to generate the synthetic dataset.
+    Depends on the private-pgm package: https://github.com/ryan112358/private-pgm
+    """
+
+    def __init__(self, dataset=None, predicates=None, k=None,
+                 sensitivity=None, epsilon=None, delta=1e-9,
+                 rng=None):
+        super().__init__()
+        self.dataset = dataset
+        self.predicates = predicates
+        self.k = k
+        self.mwem_pgm_dataset = None
+        self.mwem_pgm_domain = None
+        self._create_mwem_pgm_domain()
+        self.sensitivity = sensitivity
+        self.epsilon = epsilon
+        self.delta = delta
+        if rng is None:
+            self.rng = np.random.default_rng(1000)
+        else:
+            self.rng = rng
+        self.synthetic_dataset = None
+
+    def set_privacy_parameters(self, epsilon, delta=None):
+        self.epsilon = epsilon
+        if delta is not None:
+            self.delta = delta
+
+    def get_true_answer(self, ids) -> list:
+        if ids is not None and len(ids) > 0:
+            df = self.dataset.select_rows_from_ids(ids)
+            answers = []
+            for predicate in self.predicates:
+                answers.append(df.query(predicate).shape[0])
+            return answers
+        else:
+            return [0] * len(self.predicates)
+
+    def get_private_answer(self, ids, rerun=True) -> list:
+        if ids is not None and len(ids) > 0:
+            if rerun:  # check if previously generated synthetic histogram can't be used
+                self._mwem_pgm(ids)  # learn histogram using MST and generate synthetic dataset
+            answers = []
+            for predicate in self.predicates:
+                answers.append(self.synthetic_dataset.query(predicate).shape[0])  # answers from synthetic dataset
+            return answers
+        else:
+            return [0] * len(self.predicates)
+
+    def _create_mwem_pgm_domain(self):
+        # create MWEM-PGM compatible domain
+        our_domain = self.dataset.get_domain()
+        mst_domain_dict = {}
+        for feature in our_domain.keys():
+            feature_domain = our_domain[feature]
+            if isinstance(feature_domain, int):
+                mst_domain_dict[feature] = feature_domain  # number of categories is already given as int
+            else:
+                mst_domain_dict[feature] = len(feature_domain)  # number of categories for discrete variable
+        self.mwem_pgm_domain = Domain.fromdict(mst_domain_dict)
+
+    def _mwem_pgm(self, ids):
+        # create MWEM-PGM compatible dataset with selected IDs
+        self.mwem_pgm_dataset = Dataset(df=self.dataset.select_rows_from_ids(ids),
+                                        domain=self.mwem_pgm_domain)
+
+        # learn synthetic dataset using MWEM-PGM
+        self.synthetic_dataset = utils.mwem_pgm(
+            self.mwem_pgm_dataset, self.epsilon, self.delta, self.k
+        ).df
+
+
 def initialize_answer_var(query: Query):
     if isinstance(query, PmwQuery):
         answer = np.zeros(shape=len(query.predicates))
     elif isinstance(query, MstQuery):
+        answer = np.zeros(shape=len(query.predicates))
+    elif isinstance(query, MwemPgmQuery):
         answer = np.zeros(shape=len(query.predicates))
     else:
         answer = np.array([0.0])
@@ -379,6 +448,9 @@ def initialize_answer_vars(query: Query):
         true_answer = np.zeros(shape=len(query.predicates))
         private_answer = np.zeros(shape=len(query.predicates))
     elif isinstance(query, MstQuery):
+        true_answer = np.zeros(shape=len(query.predicates))
+        private_answer = np.zeros(shape=len(query.predicates))
+    elif isinstance(query, MwemPgmQuery):
         true_answer = np.zeros(shape=len(query.predicates))
         private_answer = np.zeros(shape=len(query.predicates))
     else:

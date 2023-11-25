@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +8,8 @@ import pandas as pd
 from dataset import Dataset
 from query import CountQuery
 from query_engine import NaiveBinaryQueryEngine, BinaryRestartsQueryEngine
+
+warnings.filterwarnings("ignore")
 
 if __name__ == "__main__":
     batch_size = 1000

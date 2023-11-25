@@ -1,24 +1,30 @@
 from pathlib import Path
-import numpy as np
 
+import numpy as np
+import yaml
 
 if __name__ == "__main__":
-    dataset_prefix = "adult_small"
-    batch_size = 50
-    window_size = 5
+    plots_config_path = f"../plots/plots_config.yaml"
+    with open(plots_config_path, "r") as config_file:
+        plots_config = yaml.safe_load(config_file)
+
+    dataset_prefix = plots_config["dataset_prefix"]
+    batch_size = plots_config["batch_size"]
+    window_size = plots_config["window_size"]
     dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
 
-    query_type = "pmw"
-    epsilon = 10.0
-    delta = None
+    query_type = plots_config["query_type"]
+    epsilon = plots_config["epsilon"]
+    delta = plots_config["delta"]
     privstr = "eps" + str(epsilon).replace(".", "_")
     if delta:
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
-    num_runs = 3
-    org_seed = 1234
+
+    num_runs = plots_config["num_runs"]
+    org_seed = plots_config["org_seed"]
     exp_save_dir = Path(f"./{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
 
-    batches = 15
+    batches = plots_config["batches"]
 
     # combine data for each run
     for run in range(num_runs):

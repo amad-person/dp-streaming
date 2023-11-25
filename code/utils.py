@@ -6,9 +6,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from disjoint_set import DisjointSet
-from mbi import FactoredInference, Domain, Dataset
+from mbi import FactoredInference, Domain, Dataset, GraphicalModel
 from scipy import sparse
-from scipy.special import logsumexp
+from scipy.special import logsumexp, softmax
 
 
 def get_first_non_zero_lsb(binary_num):
@@ -346,3 +346,70 @@ def reverse_data(data, supports):
         df.loc[~mask, col] = idx[df.loc[~mask, col]]
     newdom = Domain.fromdict(newdom)
     return Dataset(df, newdom)
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mwem%2Bpgm.py
+def worst_approximated(workload_answers, est, workload, eps, penalty=True, bounded=False):
+    errors = np.array([])
+    for cl in workload:
+        bias = est.domain.size(cl) if penalty else 0
+        x = workload_answers[cl]
+        xest = est.project(cl).datavector()
+        errors = np.append(errors, np.abs(x - xest).sum() - bias)
+    sensitivity = 2.0 if bounded else 1.0
+    prob = softmax(0.5 * eps / sensitivity * (errors - errors.max()))
+    key = np.random.choice(len(errors), p=prob)
+    return workload[key]
+
+
+# source: https://github.com/ryan112358/private-pgm/blob/master/mechanisms/mwem%2Bpgm.py
+def mwem_pgm(data, epsilon, delta=0.0,
+             k=2, workload=None, rounds=None,
+             maxsize_mb=25, pgm_iters=1000,
+             noise='gaussian', bounded=False, alpha=0.9):
+    if workload is None:
+        workload = list(itertools.combinations(data.domain, k))
+    if rounds is None:
+        rounds = len(data.domain)
+
+    if noise == 'laplace':
+        eps_per_round = epsilon / rounds
+        sigma = 1.0 / (alpha * eps_per_round)
+        exp_eps = (1 - alpha) * eps_per_round
+        marginal_sensitivity = 2 if bounded else 1.0
+    else:
+        rho = cdp_rho(epsilon, delta)
+        rho_per_round = rho / rounds
+        sigma = np.sqrt(0.5 / (alpha * rho_per_round))
+        exp_eps = np.sqrt(8 * (1 - alpha) * rho_per_round)
+        marginal_sensitivity = np.sqrt(2) if bounded else 1.0
+
+    domain = data.domain
+    total = data.records if bounded else None
+
+    def size(cliques):
+        return GraphicalModel(domain, cliques).size * 8 / 2 ** 20
+
+    workload_answers = {cl: data.project(cl).datavector() for cl in workload}
+
+    engine = FactoredInference(data.domain, log=False, iters=pgm_iters, warm_start=True)
+    measurements = []
+    est = engine.estimate(measurements, total)
+    cliques = []
+    for i in range(1, rounds + 1):
+        # [New] Only consider candidates that keep the model sufficiently small
+        candidates = [cl for cl in workload if size(cliques + [cl]) <= maxsize_mb * i / rounds]
+        ax = worst_approximated(workload_answers, est, candidates, exp_eps)
+        # print('Round', i, 'Selected', ax, 'Model Size (MB)', est.size * 8 / 2 ** 20)
+        n = domain.size(ax)
+        x = data.project(ax).datavector()
+        if noise == 'laplace':
+            y = x + np.random.laplace(loc=0, scale=marginal_sensitivity * sigma, size=n)
+        else:
+            y = x + np.random.normal(loc=0, scale=marginal_sensitivity * sigma, size=n)
+        Q = sparse.eye(n)
+        measurements.append((Q, y, 1.0, ax))
+        est = engine.estimate(measurements, total)
+        cliques.append(ax)
+
+    return est.synthetic_data(rows=len(data.df))

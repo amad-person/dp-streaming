@@ -666,10 +666,10 @@ if __name__ == "__main__":
     #                               window_size=window_size)
 
     adult_dataset_path = f"./adult.csv"
-    adult_size = "full"
+    adult_size = "small"
     encoding_type = "ohe"
     adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
-    batch_size = 1000
+    batch_size = 50
     window_size = 3
     create_adult_dataset(path=adult_dataset_path,
                          domain_path=adult_dataset_domain_path,

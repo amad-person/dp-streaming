@@ -1,9 +1,9 @@
-dataset_prefix: "adult_full"
-batch_size: 1000
+dataset_prefix: "adult_small"
+batch_size: 50
 window_size: 3
-query_type: "mst"
+query_type: "mwem_pgm"
 epsilon: 10.0
-delta: 1e-9
+delta: 1e-09
 num_runs: 3
 org_seed: 1234
-batches: 10
+batches: 3

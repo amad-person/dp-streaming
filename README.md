@@ -17,12 +17,23 @@ The following queries are currently supported:
 1. Count Query: Return the number of records in the dataset.
 1. Predicate Query: Return the number of records in the dataset that satisfy the specified predicate (e.g., number of people who are 25 years old).
 1. PMW Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MWEM algorithm to learn the synthetic data distribution.
-1. MST Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MST algorithm to learn the synthetic data distribution.
+1. MST Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MST algorithm from the `private-pgm` package to learn the synthetic data distribution.
+1. MWEM-PGM Query: Estimate the synthetic data distribution that is 'trained' using the set of queries and return answers for each query in this set. Uses the MWEM-PGM algorithm from the `private-pgm` package to learn the synthetic data distribution.
 
 You can define your own queries by extending the base `Query` class. Your class should contain the following methods:
 1. `set_privacy_parameters()`: Update the privacy parameters (epsilon, delta) for the query. This is useful when you want to change the privacy parameters specified during query initialization. 
 2. `get_true_answer()`: Return the answer of the query on the dataset, without noise added.
 3. `get_private_answer()`: Return the answer of the query on the dataset, after noise has been added using a desired private mechanism (e.g., Laplace). 
+
+#### Implementation Notes
+
+The MST algorithm needs more than a few datapoints to estimate the synthetic data distribution, but the Binary Restarts Mechanism updates the deletion streams one deletion at a time. This might cause numerical instability errors while sampling data from the learnt synthetic data distribution. 
+To fix these errors, add the following lines after `mbi/graphical_model.py#L212` in the `private-pgm` package:
+```python
+def synthetic_col(counts, total):  # L212
+    counts = np.nan_to_num(counts)  # ADD THIS LINE
+    counts[counts == 0] = 1e-32  # ADD THIS LINE
+```
 
 ### Dataset
 
