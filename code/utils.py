@@ -358,6 +358,10 @@ def worst_approximated(workload_answers, est, workload, eps, penalty=True, bound
         errors = np.append(errors, np.abs(x - xest).sum() - bias)
     sensitivity = 2.0 if bounded else 1.0
     prob = softmax(0.5 * eps / sensitivity * (errors - errors.max()))
+    # prevent numerical instability errors
+    prob = np.nan_to_num(prob)
+    prob[prob == 0] = 1e-32
+    prob = prob / prob.sum()
     key = np.random.choice(len(errors), p=prob)
     return workload[key]
 
