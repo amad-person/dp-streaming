@@ -51,6 +51,7 @@ The query engine encapsulates how the dataset is processed as a stream. A query 
 The following query engines are currently supported: 
 1. Naive Binary: Two binary streams made of NaiveNodes. One stream processes insertions and the other processes deletions.
 1. Binary Restarts: A single binary stream made of RestartNodes. Each node consists of insertions and its own deletion stream to track if any of its items have been deleted. 
+1. Interval Restarts ([paper](https://arxiv.org/pdf/2209.01387.pdf)): A single interval tree stream made of RestartNodes. Each node consists of insertions and its own deletion stream to track if any of its items have been deleted. 
 
 #### Nodes
 
@@ -68,5 +69,6 @@ The following nodes are currently supported:
 
 ## Credits
 
+1. https://arxiv.org/pdf/2209.01387.pdf
 1. https://github.com/mrtzh/PrivateMultiplicativeWeights.jl
-2. https://github.com/ryan112358/private-pgm
+1. https://github.com/ryan112358/private-pgm
