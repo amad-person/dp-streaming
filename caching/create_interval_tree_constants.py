@@ -1,3 +1,6 @@
+import dill
+
+
 class TreeNode:
     def __init__(self, val):
         self.val = val
@@ -61,19 +64,38 @@ def find_path_to_val(root, val):
 
 
 if __name__ == "__main__":
-    max_value = 1023
+    max_value = 65535
     sorted_values = list(range(1, max_value + 1))
     root_node = create_tree(sorted_values, 0, len(sorted_values) - 1)
 
     # print_binary_tree(root_node)
 
+    rtl_path_map = {}
+    lowest_ancestors_map = {}
     for val in sorted_values:
         path_to_val = find_path_to_val(root_node, val)
-        print(val, path_to_val)
+
+        selected_ids_on_path = []
+        for par in path_to_val:
+            if par <= val:
+                selected_ids_on_path.append(par)
+        rtl_path_map[val] = selected_ids_on_path
+        # print(val, rtl_path_map[val])
 
         ancestor = None
         for par in reversed(path_to_val):
             if par < val:
                 ancestor = par
                 break
-        print(val, ancestor)
+        lowest_ancestors_map[val] = ancestor
+        # print(val, lowest_ancestors_map[val])
+
+    with open(f"rtl_path_map.pkl", "wb") as rtl_f:
+        dill.dump({
+            "rtl_path_map": rtl_path_map
+        }, rtl_f)
+
+    with open(f"lowest_ancestor_map.pkl", "wb") as anc_f:
+        dill.dump({
+            "lowest_ancestor_map": lowest_ancestors_map
+        }, anc_f)

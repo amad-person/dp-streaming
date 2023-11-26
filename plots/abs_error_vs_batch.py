@@ -17,6 +17,7 @@ if __name__ == "__main__":
     dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
 
     query_type = plots_config["query_type"]
+    comparison_type = plots_config["comparison_type"]
     epsilon = plots_config["epsilon"]
     delta = plots_config["delta"]
     privstr = "eps" + str(epsilon).replace(".", "_")
@@ -25,7 +26,8 @@ if __name__ == "__main__":
 
     num_runs = plots_config["num_runs"]
     org_seed = plots_config["org_seed"]
-    exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
+    exp_save_dir = Path(f"../save/{dataset_name}_{comparison_type}_{query_type}"
+                        f"_{privstr}_{num_runs}runs_{org_seed}oseed")
 
     batches = plots_config["batches"]
 
@@ -64,6 +66,19 @@ if __name__ == "__main__":
             error_values += np.abs(query_br_answers - query_true_answers).tolist()
             mechanism_labels += ["Binary Restarts"] * num_batches
             batch_nums += list(range(num_batches))
+
+        if comparison_type == "all":
+            int_priv_ans_path = f"{exp_save_dir}/int_private_ans_run{run}"
+            if batches is not None:
+                int_priv_ans_path += f"_batches{batches}"
+            int_priv_ans_path += ".npz"
+            int_priv_ans = np.load(int_priv_ans_path)["arr_0"]
+            for query_idx in range(num_queries):
+                query_true_answers = true_ans[:, query_idx]
+                query_int_answers = int_priv_ans[:, query_idx]
+                error_values += np.abs(query_int_answers - query_true_answers).tolist()
+                mechanism_labels += ["Interval Restarts"] * num_batches
+                batch_nums += list(range(num_batches))
 
     data_dict = {
         "Mechanism": mechanism_labels,

@@ -357,7 +357,8 @@ class IntervalRestartsQueryEngine(QueryEngine):
                 ids_for_node = current_ids_df[self.dataset.id_col].tolist()
             self.query.set_privacy_parameters(epsilon=epsilon_for_node,
                                               delta=delta_for_node)
-            node = RestartNode(ids_for_node, self.query, epsilon=epsilon_for_node, num_threads=self.num_threads)
+            node = RestartNode(ids_for_node, self.query, epsilon=epsilon_for_node,
+                               num_threads=self.num_threads, is_interval=True)
 
             # add current node to map
             self.interval_restarts_list.append(node)
@@ -426,6 +427,7 @@ if __name__ == "__main__":
     dataset.save_to_path(f"../data/{dataset_name}_{data_encoding_type}_batched_{time_int_str}.csv")
 
     query_type = "mwem_pgm"
+    comparison_type = "all"
     epsilon = 10.0
     delta = 1e-9
     privstr = "eps" + str(epsilon).replace(".", "_")
@@ -433,7 +435,8 @@ if __name__ == "__main__":
         privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
     num_runs = 3
     org_seed = 1234
-    exp_save_dir = Path(f"../save/{dataset_name}_nb_vs_br_{query_type}_{privstr}_{num_runs}runs_{org_seed}oseed")
+    exp_save_dir = Path(f"../save/{dataset_name}_{comparison_type}_{query_type}"
+                        f"_{privstr}_{num_runs}runs_{org_seed}oseed")
     if not Path.is_dir(exp_save_dir):
         os.mkdir(exp_save_dir)
     start_from_batch_num = None
@@ -451,7 +454,7 @@ if __name__ == "__main__":
     num_threads = 4
 
     # run mechanisms on the same dataset NUM_RUNS number of times
-    for run in range(num_runs):
+    for run in range(1, num_runs):
         print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
@@ -469,7 +472,7 @@ if __name__ == "__main__":
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
         np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
-    for run in range(num_runs):
+    for run in range(1, num_runs):
         print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
@@ -486,3 +489,21 @@ if __name__ == "__main__":
         print("Private Answers:", br_private_ans.tolist())
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
         np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))
+
+    for run in range(1, num_runs):
+        print("On run number:", run)
+        seed = org_seed + run
+        rng = np.random.default_rng(seed)
+
+        print("Running Interval Restarts Mechanism")
+        int_query = MwemPgmQuery(dataset=dataset, predicates=predicates, k=2, rng=rng)
+        interval_restarts_query_engine = IntervalRestartsQueryEngine(dataset, int_query,
+                                                                     epsilon, delta,
+                                                                     save_path_prefix=f"{exp_save_dir}/run{run}_int",
+                                                                     num_threads=num_threads)
+        int_true_ans, int_private_ans = interval_restarts_query_engine.run(num_batches=num_batches,
+                                                                           start_from_batch_num=start_from_batch_num)
+        print("True Answers:", int_true_ans.tolist())
+        print("Private Answers:", int_private_ans.tolist())
+        np.savez(f"{exp_save_dir}/int_true_ans_run{run}", np.array(int_true_ans))
+        np.savez(f"{exp_save_dir}/int_private_ans_run{run}", np.array(int_private_ans))

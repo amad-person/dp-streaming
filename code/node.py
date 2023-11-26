@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from multiprocessing import Pool
@@ -65,7 +66,7 @@ class NaiveNode(Node):
 
 
 class RestartNode(Node):
-    def __init__(self, ins_ids, query, epsilon, delta=None, beta=0.15, num_threads=8):
+    def __init__(self, ins_ids, query, epsilon, delta=None, beta=0.15, num_threads=8, is_interval=False):
         super().__init__()
         self.ins_ids = ins_ids
         self.query = query
@@ -90,6 +91,9 @@ class RestartNode(Node):
         self.compute_answers()
 
         # initialize deletion streams
+        self.num_restarts = 0
+        # Binary Restarts = false, Interval Restarts = true
+        self.update_privacy_params_based_on_num_restarts = is_interval
         self.del_ids = []
         self.naive_binary_deletions_map = {}
         self.current_tree_idx_nb_deletions, self.node_i_nb_deletions = 0, 0
@@ -258,6 +262,9 @@ class RestartNode(Node):
         return self.private_answer
 
     def restart(self):
+        # update number of restarts
+        self.num_restarts = self.num_restarts + 1
+
         # remove previously deleted items from the insertion ids
         for del_id in self.del_ids:
             self.ins_ids.remove(del_id)
@@ -275,9 +282,16 @@ class RestartNode(Node):
         self.num_nodes_nb_del_count = 0
 
         # set new values for privacy parameters
-        self.epsilon = self.epsilon / 2
-        if self.delta:
-            self.delta = self.delta / 2
+        if self.update_privacy_params_based_on_num_restarts:
+            # Interval Restarts
+            self.epsilon = (3 * self.epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
+            if self.delta:
+                self.delta = (2 * self.delta / (math.pi ** 2) * (self.num_restarts ** 2))
+        else:
+            # Binary Restarts
+            self.epsilon = self.epsilon
+            if self.delta:
+                self.delta = self.delta
 
         # set new noisy estimate for the number of ids (every query returns a list, so we take the first value)
         self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)[0]

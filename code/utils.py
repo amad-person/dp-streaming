@@ -2,6 +2,7 @@ import itertools
 import math
 import os.path
 
+import dill
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -42,13 +43,16 @@ def get_interval_tree_level(num):
     return level
 
 
-# TODO: implement this
 def get_interval_tree_lowest_ancestor(num):
-    return 0
+    with open(f"../caching/lowest_ancestor_map.pkl", "rb") as anc_f:
+        lowest_ancestor_map = dill.load(anc_f)["lowest_ancestor_map"]
+    return lowest_ancestor_map[num]
 
-# TODO: implement this
+
 def get_interval_tree_nodes_on_rtl_path(num):
-    return []
+    with open(f"../caching/rtl_path_map.pkl", "rb") as rtl_f:
+        rtl_path_map = dill.load(rtl_f)["rtl_path_map"]
+    return rtl_path_map[num]
 
 
 # source: https://stackoverflow.com/a/57025941
