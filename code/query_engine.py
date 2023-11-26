@@ -454,7 +454,7 @@ if __name__ == "__main__":
     num_threads = 4
 
     # run mechanisms on the same dataset NUM_RUNS number of times
-    for run in range(1, num_runs):
+    for run in range(num_runs):
         print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
@@ -472,7 +472,7 @@ if __name__ == "__main__":
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
         np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
-    for run in range(1, num_runs):
+    for run in range(num_runs):
         print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
@@ -490,7 +490,7 @@ if __name__ == "__main__":
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
         np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))
 
-    for run in range(1, num_runs):
+    for run in range(num_runs):
         print("On run number:", run)
         seed = org_seed + run
         rng = np.random.default_rng(seed)
