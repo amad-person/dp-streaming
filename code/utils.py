@@ -29,6 +29,33 @@ def get_tree_height(num):
     return get_tree_idx(num)
 
 
+def get_interval_tree_level(num):
+    if num % 2 == 1:
+        # odd-numbered nodes are always at level = 1
+        level = 1
+    else:
+        # even-numbered nodes are at level = 1 + number of times node ID can be divided by 2
+        level = 1
+        while num % 2 == 0:
+            level += 1
+            num = num / 2
+    return level
+
+
+# TODO: implement this
+def get_interval_tree_lowest_ancestor(num):
+    return 0
+
+# TODO: implement this
+def get_interval_tree_nodes_on_rtl_path(num):
+    return []
+
+
+# source: https://stackoverflow.com/a/57025941
+def is_power_of_two(num):
+    return (num & (num - 1) == 0) and num != 0
+
+
 def dataset_to_ohe(df, domain):
     # convert all columns to one-hot encoding
     df[df.columns] = df[df.columns].astype("category")

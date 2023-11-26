@@ -1,3 +1,4 @@
+import math
 import os
 import warnings
 from abc import ABC, abstractmethod
@@ -220,10 +221,9 @@ class BinaryRestartsQueryEngine(QueryEngine):
                 current_tree_idx = tree_idx
 
             # build current node
-            self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
-                                              delta=self.delta)
-            node = RestartNode(ins_ids, self.query, epsilon=self.epsilon / utils.get_tree_height(node_i),
-                               num_threads=self.num_threads)
+            epsilon_for_node = self.epsilon / utils.get_tree_height(node_i)
+            self.query.set_privacy_parameters(epsilon=epsilon_for_node, delta=self.delta)
+            node = RestartNode(ins_ids, self.query, epsilon=epsilon_for_node, num_threads=self.num_threads)
             num_nodes += 1
 
             # add current node to map
@@ -295,7 +295,8 @@ class IntervalRestartsQueryEngine(QueryEngine):
         self.query = query
         self.epsilon = epsilon
         self.delta = delta
-        self.interval_restarts_map = {}
+        self.interval_restarts_list = []
+        self.current_ids = []
         self.save_path_prefix = save_path_prefix
         self.num_threads = num_threads
 
@@ -319,7 +320,8 @@ class IntervalRestartsQueryEngine(QueryEngine):
                 prev_batch_num = start_from_batch_num - 1
                 with open(f"{self.save_path_prefix}_checkpt_batch{prev_batch_num}.pkl", "rb") as f:
                     checkpt = dill.load(f)
-                    self.interval_restarts_map = checkpt["interval_restarts_map"]
+                    self.interval_restarts_list = checkpt["interval_restarts_map"]
+                    self.current_ids = checkpt["current_ids"]
 
             print("Batch number:", i)
             print("Insertion IDs:", ins_ids)
@@ -327,14 +329,65 @@ class IntervalRestartsQueryEngine(QueryEngine):
 
             node_i = i + 1
 
+            # update current IDs (all IDs in dataset after the current batch is processed)
+            self.current_ids.extend(ins_ids)
+            for del_id in del_ids:
+                if del_id in self.current_ids:
+                    self.current_ids.remove(del_id)
+
+            # calculate epsilon and delta for current node
+            epsilon_for_node = (6 * self.epsilon / (math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2))
+            if self.delta is not None:
+                delta_for_node = (6 * self.delta / (math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2))
+            else:
+                delta_for_node = self.delta
+
             # build current node
+            if utils.is_power_of_two(node_i):
+                # add all current IDs
+                ids_for_node = self.current_ids
+            else:
+                # get the lowest ancestor node ID of current node
+                ancestor_node_id = utils.get_interval_tree_lowest_ancestor(node_i)
+
+                # find all current IDs that were added after the lowest ancestor node,
+                # node IDs are 1-based, batch numbers are 0-based
+                current_ids_df = self.dataset.select_rows_from_ids(self.current_ids)
+                current_ids_df = current_ids_df.loc[current_ids_df["insertion_batch"] > (ancestor_node_id - 1)]
+                ids_for_node = current_ids_df[self.dataset.id_col].tolist()
+            self.query.set_privacy_parameters(epsilon=epsilon_for_node,
+                                              delta=delta_for_node)
+            node = RestartNode(ids_for_node, self.query, epsilon=epsilon_for_node, num_threads=self.num_threads)
 
             # add current node to map
+            self.interval_restarts_list.append(node)
 
             # propagate deletions to all nodes
+            for node in self.interval_restarts_list:
+                node.process_deletions(del_ids)
 
             # get answers
-            true_answer, private_answer = 0, 0
+            true_answer, private_answer = initialize_answer_vars(self.query)
+            interval_nodes = []
+            for node_id in utils.get_interval_tree_nodes_on_rtl_path(node_i):
+                # node IDs are 1-based, interval restarts list is 0-based
+                interval_nodes.append(self.interval_restarts_list[node_id - 1])
+
+            true_pool = Pool(self.num_threads)
+            true_results = true_pool.map(true_answer_worker, (node for node in interval_nodes))
+            true_pool.close()
+            true_pool.join()
+
+            private_pool = Pool(self.num_threads)
+            private_results = private_pool.map(private_answer_worker, (node for node in interval_nodes))
+            private_pool.close()
+            private_pool.join()
+
+            for result in true_results:
+                true_answer += result
+
+            for result in private_results:
+                private_answer += result
 
             # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
@@ -343,7 +396,8 @@ class IntervalRestartsQueryEngine(QueryEngine):
             # save state into checkpoint file
             with open(f"{self.save_path_prefix}_checkpt_batch{i}.pkl", "wb") as f:
                 dill.dump({
-                    "interval_restarts_map": self.interval_restarts_map,
+                    "interval_restarts_map": self.interval_restarts_list,
+                    "current_ids": self.current_ids
                 }, f)
 
             true_answers.append(true_answer)
@@ -408,7 +462,8 @@ if __name__ == "__main__":
                                                            epsilon, delta,
                                                            save_path_prefix=f"{exp_save_dir}/run{run}_nb",
                                                            num_threads=num_threads)
-        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=num_batches)
+        nb_true_ans, nb_private_ans = naive_binary_query_engine.run(num_batches=num_batches,
+                                                                    start_from_batch_num=start_from_batch_num)
         print("True Answers:", nb_true_ans.tolist())
         print("Private Answers:", nb_private_ans.tolist())
         np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
@@ -425,7 +480,8 @@ if __name__ == "__main__":
                                                                  epsilon, delta,
                                                                  save_path_prefix=f"{exp_save_dir}/run{run}_br",
                                                                  num_threads=num_threads)
-        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches)
+        br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches,
+                                                                       start_from_batch_num=start_from_batch_num)
         print("True Answers:", br_true_ans.tolist())
         print("Private Answers:", br_private_ans.tolist())
         np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
