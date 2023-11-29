@@ -5,6 +5,7 @@
 *.csv
 *.json
 *.npz
+logs.txt
 
 # IDE files
 .idea/

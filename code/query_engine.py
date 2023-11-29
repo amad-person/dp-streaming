@@ -1,5 +1,7 @@
+import logging
 import math
 import os
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from multiprocessing import Pool
@@ -15,6 +17,19 @@ from node import NaiveNode, RestartNode
 from query import initialize_answer_vars, MwemPgmQuery
 
 warnings.filterwarnings("ignore")
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
+stdoutHandler = logging.StreamHandler(stream=sys.stdout)
+fileHandler = logging.FileHandler("logs.txt")
+
+logFmt = logging.Formatter(
+    "%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d >>> %(message)s"
+)
+
+logger.addHandler(stdoutHandler)
+logger.addHandler(fileHandler)
 
 
 class QueryEngine(ABC):
@@ -74,12 +89,14 @@ class NaiveBinaryQueryEngine(QueryEngine):
             print("Deletion IDs:", del_ids)
 
             node_i = i + 1
+            logger.debug(f"Created Node ID: {node_i}")
 
             # start building new tree
             tree_idx = utils.get_tree_idx(node_i)
             if tree_idx != current_tree_idx:
                 num_nodes = 0
                 current_tree_idx = tree_idx
+            logger.debug(f"Current Tree ID: {current_tree_idx}")
 
             # build current nodes
             self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
@@ -87,6 +104,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
             ins_node = NaiveNode(ins_ids, self.query)
             del_node = NaiveNode(del_ids, self.query)
             num_nodes += 1
+            logger.debug(f"Query for Node {node_i}: {self.query}")
 
             # add current nodes to maps
             ins_tree_nodes = self.naive_binary_insertions_map.get(current_tree_idx, [])
@@ -111,6 +129,8 @@ class NaiveBinaryQueryEngine(QueryEngine):
                 n = n / 2
             self.naive_binary_insertions_map[current_tree_idx] = ins_tree_nodes
             self.naive_binary_deletions_map[current_tree_idx] = del_tree_nodes
+            logger.debug(f"Naive Binary Insertions Map: {self.naive_binary_insertions_map}")
+            logger.debug(f"Naive Binary Deletions Map: {self.naive_binary_deletions_map}")
 
             # combine answers from all trees
             true_answer, private_answer = initialize_answer_vars(self.query)
@@ -214,12 +234,14 @@ class BinaryRestartsQueryEngine(QueryEngine):
             print("Deletion IDs:", del_ids)
 
             node_i = i + 1
+            logger.debug(f"Created Node ID: {node_i}")
 
             # start building new tree
             tree_idx = utils.get_tree_idx(node_i)
             if tree_idx != current_tree_idx:
                 num_nodes = 0
                 current_tree_idx = tree_idx
+            logger.debug(f"Current Tree ID: {current_tree_idx}")
 
             # build current node
             epsilon_for_node = self.epsilon / utils.get_tree_height(node_i)
@@ -228,6 +250,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
                                epsilon=epsilon_for_node, delta=self.delta,
                                num_threads=self.num_threads)
             num_nodes += 1
+            logger.debug(f"Query for Node {node_i}: {self.query}")
 
             # add current node to map
             tree_nodes = self.binary_restarts_map.get(current_tree_idx, [])
@@ -244,6 +267,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
                     tree_nodes.append(merged_node)
                 n = n / 2
             self.binary_restarts_map[current_tree_idx] = tree_nodes
+            logger.debug(f"Binary Restarts Map: {self.binary_restarts_map}")
 
             # propagate deletions to all nodes
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
@@ -331,6 +355,7 @@ class IntervalRestartsQueryEngine(QueryEngine):
             print("Deletion IDs:", del_ids)
 
             node_i = i + 1
+            logger.debug(f"Created Node ID: {node_i}, Level: {utils.get_interval_tree_level(node_i)}")
 
             # update current IDs (all IDs in dataset after the current batch is processed)
             self.current_ids.extend(ins_ids)
@@ -339,11 +364,12 @@ class IntervalRestartsQueryEngine(QueryEngine):
                     self.current_ids.remove(del_id)
 
             # calculate epsilon and delta for current node
-            epsilon_for_node = (6 * self.epsilon / (math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2))
+            epsilon_for_node = (6 * self.epsilon / ((math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2)))
             if self.delta is not None:
-                delta_for_node = (6 * self.delta / (math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2))
+                delta_for_node = (6 * self.delta / ((math.pi ** 2) * (utils.get_interval_tree_level(node_i) ** 2)))
             else:
                 delta_for_node = self.delta
+            logger.debug(f"Node \tEpsilon: {epsilon_for_node}\tDelta: {delta_for_node}")
 
             # build current node
             if utils.is_power_of_two(node_i):
@@ -358,14 +384,18 @@ class IntervalRestartsQueryEngine(QueryEngine):
                 current_ids_df = self.dataset.select_rows_from_ids(self.current_ids)
                 current_ids_df = current_ids_df.loc[current_ids_df["insertion_batch"] > (ancestor_node_id - 1)]
                 ids_for_node = current_ids_df[self.dataset.id_col].tolist()
+            logger.debug(f"IDs for Node {node_i}: {ids_for_node}")
+
             self.query.set_privacy_parameters(epsilon=epsilon_for_node,
                                               delta=delta_for_node)
             node = RestartNode(ids_for_node, self.query,
                                epsilon=epsilon_for_node, delta=delta_for_node,
                                num_threads=self.num_threads, is_interval=True)
+            logger.debug(f"Query for Node {node_i}: {self.query}")
 
             # add current node to map
             self.interval_restarts_list.append(node)
+            logger.debug(f"Interval Restarts List: {self.interval_restarts_list}")
 
             # propagate deletions to all nodes
             for node in self.interval_restarts_list:
@@ -414,7 +444,7 @@ class IntervalRestartsQueryEngine(QueryEngine):
 
 # Testing on the Adult dataset
 if __name__ == "__main__":
-    for batch_size in [25]:
+    for batch_size in [5, 10]:
         print("Batch Size:", batch_size)
         for window_size in [1, 3, 5, 10]:
             print("Window Size:", window_size)

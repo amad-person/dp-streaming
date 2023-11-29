@@ -2,11 +2,25 @@ import math
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from multiprocessing import Pool
-
+import sys
+import logging
 import numpy as np
 
 import utils
 from query import initialize_answer_var, initialize_answer_vars, CountQuery
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
+stdoutHandler = logging.StreamHandler(stream=sys.stdout)
+fileHandler = logging.FileHandler("logs.txt")
+
+logFmt = logging.Formatter(
+    "%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d >>> %(message)s"
+)
+
+logger.addHandler(stdoutHandler)
+logger.addHandler(fileHandler)
 
 
 def private_answer_worker(node):
@@ -82,9 +96,9 @@ class RestartNode(Node):
 
         # privacy parameters to distribute over deletion streams
         if is_interval:
-            self.epsilon = (3 * epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
+            self.epsilon = (3 * epsilon / (2 * (math.pi ** 2) * (self.num_restarts ** 2)))
             if delta is not None:
-                self.delta = (2 * delta / (math.pi ** 2) * (self.num_restarts ** 2))
+                self.delta = (2 * delta / ((math.pi ** 2) * (self.num_restarts ** 2)))
             else:
                 self.delta = delta
             self.beta = beta * (1 / (math.pi ** 2))
@@ -117,10 +131,13 @@ class RestartNode(Node):
         self.num_nodes_nb_del_count = 0
 
     def compute_answers(self):
+        logger.debug(f"Computing answers with Epsilon: {self.epsilon}\tDelta: {self.delta}")
+
         self.query.set_privacy_parameters(epsilon=self.epsilon, delta=self.delta)
         self.true_answer = self.query.get_true_answer(self.ins_ids)
 
         if self.is_interval and self.halt_node is True:
+            logger.debug("Halted interval node, returning 0s")
             self.private_answer = initialize_answer_vars(self.query)
         else:
             self.ins_ids_private_answer = self.query.get_private_answer(self.ins_ids, self.rerun)
@@ -160,9 +177,9 @@ class RestartNode(Node):
 
         # check if node can be restarted
         num_deletions = self.get_answer_from_naive_binary_count_deletions_map()[0]  # every query returns a list
-        num_deletions_error = (1 / self.epsilon
+        num_deletions_error = (1 / (self.epsilon
                                * np.power(np.log2(max(self.num_nodes_nb_del_count, 1)), 1.5)  # TODO: check t
-                               * np.log2(self.beta))
+                               * np.log2(self.beta)))
         if num_deletions > ((self.num_ins_ids / 2) + 2 * num_deletions_error):
             self.restart()
         else:
@@ -282,6 +299,7 @@ class RestartNode(Node):
     def restart(self):
         # update number of restarts
         self.num_restarts = self.num_restarts + 1
+        logger.debug(f"Restart Number: {self.num_restarts}")
 
         # remove previously deleted items from the insertion ids
         for del_id in self.del_ids:
@@ -293,10 +311,10 @@ class RestartNode(Node):
         # set new values for privacy parameters and beta
         if self.is_interval:
             # Interval Restarts
-            self.epsilon = (3 * self.epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
+            self.epsilon = (3 * self.epsilon / (2 * (math.pi ** 2) * (self.num_restarts ** 2)))
             if self.delta:
-                self.delta = (2 * self.delta / (math.pi ** 2) * (self.num_restarts ** 2))
-            self.beta = (self.beta / (math.pi ** 2) * (self.num_restarts ** 2))
+                self.delta = (2 * self.delta / ((math.pi ** 2) * (self.num_restarts ** 2)))
+            self.beta = (self.beta / ((math.pi ** 2) * (self.num_restarts ** 2)))
         else:
             # Binary Restarts
             self.epsilon = self.epsilon / utils.get_tree_height(self.node_i_nb_deletions)
@@ -318,11 +336,10 @@ class RestartNode(Node):
 
         # halt Interval Restarts for future calls if noisy estimate for the number of ids
         # is less than num_deletions_error
-        num_deletions_error = (1 / self.epsilon
+        num_deletions_error = (1 / (self.epsilon
                                * np.power(np.log2(max(self.num_nodes_nb_del_count, 1)), 1.5)  # TODO: check t
-                               * np.log2(self.beta))
+                               * np.log2(self.beta)))
         if self.num_ins_ids < 2 * num_deletions_error:
-            print("Halted node")
             self.halt_node = True
 
         # recompute answers

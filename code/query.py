@@ -1,6 +1,5 @@
 import random
 from abc import ABC, abstractmethod
-from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -23,6 +22,10 @@ class Query(ABC):
 
     @abstractmethod
     def get_private_answer(self, *args) -> list:
+        pass
+
+    @abstractmethod
+    def __repr__(self):
         pass
 
 
@@ -65,6 +68,9 @@ class CountQuery(Query):
             return [noisy_answer]
         else:
             return [0]
+
+    def __repr__(self):
+        return f"Count Query:\tEpsilon: {self.epsilon}\tDelta: {self.delta}\tSensitivity: {self.sensitivity}"
 
 
 class PredicateQuery(Query):
@@ -111,6 +117,9 @@ class PredicateQuery(Query):
             return [noisy_answer]
         else:
             return [0]
+
+    def __repr__(self):
+        return f"Predicate Query:\tEpsilon: {self.epsilon}\tDelta: {self.delta}\tSensitivity: {self.sensitivity}"
 
 
 class PmwQuery(Query):
@@ -281,6 +290,9 @@ class PmwQuery(Query):
         elif hist_repr_type == "binarized":
             return utils.binarized_to_dataset(encoded_df=synthetic_df_encoded, domain=self.dataset.get_domain())
 
+    def __repr__(self):
+        return f"PMW Query:\tEpsilon: {self.epsilon}\tDelta: {self.delta}\tSensitivity: {self.sensitivity}"
+
 
 class MstQuery(Query):
     """
@@ -353,6 +365,9 @@ class MstQuery(Query):
 
         # learn synthetic dataset using MST
         self.synthetic_dataset = utils.MST(self.mst_dataset, self.epsilon, self.delta).df
+
+    def __repr__(self):
+        return f"MST Query:\tEpsilon: {self.epsilon}\tDelta: {self.delta}\tSensitivity: {self.sensitivity}"
 
 
 class MwemPgmQuery(Query):
@@ -429,6 +444,9 @@ class MwemPgmQuery(Query):
         self.synthetic_dataset = utils.mwem_pgm(
             self.mwem_pgm_dataset, self.epsilon, self.delta, self.k
         ).df
+
+    def __repr__(self):
+        return f"MWEM-PGM Query:\tEpsilon: {self.epsilon}\tDelta: {self.delta}\tSensitivity: {self.sensitivity}"
 
 
 def initialize_answer_var(query: Query):
