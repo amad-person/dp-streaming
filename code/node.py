@@ -6,7 +6,7 @@ from multiprocessing import Pool
 import numpy as np
 
 import utils
-from query import initialize_answer_var, CountQuery
+from query import initialize_answer_var, initialize_answer_vars, CountQuery
 
 
 def private_answer_worker(node):
@@ -70,11 +70,28 @@ class RestartNode(Node):
         super().__init__()
         self.ins_ids = ins_ids
         self.query = query
-        self.beta = beta
+
+        # set number of restarts
+        self.num_restarts = 1
+
+        # flag for updating parameters after restarts: Binary Restarts = false, Interval Restarts = true
+        self.is_interval = is_interval
+
+        # flag for halting Interval Restarts
+        self.halt_node = False
 
         # privacy parameters to distribute over deletion streams
-        self.epsilon = epsilon
-        self.delta = delta
+        if is_interval:
+            self.epsilon = (3 * epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
+            if delta is not None:
+                self.delta = (2 * delta / (math.pi ** 2) * (self.num_restarts ** 2))
+            else:
+                self.delta = delta
+            self.beta = beta * (1 / (math.pi ** 2))
+        else:
+            self.epsilon = epsilon
+            self.delta = delta
+            self.beta = beta
 
         # noisy estimate of the current number of ids (every query returns a list, so we take the first value)
         self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)[0]
@@ -91,9 +108,6 @@ class RestartNode(Node):
         self.compute_answers()
 
         # initialize deletion streams
-        self.num_restarts = 0
-        # Binary Restarts = false, Interval Restarts = true
-        self.update_privacy_params_based_on_num_restarts = is_interval
         self.del_ids = []
         self.naive_binary_deletions_map = {}
         self.current_tree_idx_nb_deletions, self.node_i_nb_deletions = 0, 0
@@ -105,8 +119,12 @@ class RestartNode(Node):
     def compute_answers(self):
         self.query.set_privacy_parameters(epsilon=self.epsilon, delta=self.delta)
         self.true_answer = self.query.get_true_answer(self.ins_ids)
-        self.ins_ids_private_answer = self.query.get_private_answer(self.ins_ids, self.rerun)
-        self.private_answer = self.ins_ids_private_answer
+
+        if self.is_interval and self.halt_node is True:
+            self.private_answer = initialize_answer_vars(self.query)
+        else:
+            self.ins_ids_private_answer = self.query.get_private_answer(self.ins_ids, self.rerun)
+            self.private_answer = self.ins_ids_private_answer
 
     def merge_node(self, node):
         self.ins_ids = self.ins_ids + node.ins_ids  # merge insertion ids
@@ -272,6 +290,20 @@ class RestartNode(Node):
         # need to regenerate answers after merging
         self.rerun = True
 
+        # set new values for privacy parameters and beta
+        if self.is_interval:
+            # Interval Restarts
+            self.epsilon = (3 * self.epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
+            if self.delta:
+                self.delta = (2 * self.delta / (math.pi ** 2) * (self.num_restarts ** 2))
+            self.beta = (self.beta / (math.pi ** 2) * (self.num_restarts ** 2))
+        else:
+            # Binary Restarts
+            self.epsilon = self.epsilon / utils.get_tree_height(self.node_i_nb_deletions)
+            if self.delta:
+                self.delta = self.delta / utils.get_tree_height(self.node_i_nb_deletions)
+            self.beta = (self.beta / utils.get_tree_height(self.node_i_nb_deletions))
+
         # restart deletion streams
         self.del_ids = []
         self.naive_binary_deletions_map = {}
@@ -281,20 +313,17 @@ class RestartNode(Node):
         self.current_tree_idx_nb_del_count, self.node_i_nb_del_count = 0, 0
         self.num_nodes_nb_del_count = 0
 
-        # set new values for privacy parameters
-        if self.update_privacy_params_based_on_num_restarts:
-            # Interval Restarts
-            self.epsilon = (3 * self.epsilon / 2 * (math.pi ** 2) * (self.num_restarts ** 2))
-            if self.delta:
-                self.delta = (2 * self.delta / (math.pi ** 2) * (self.num_restarts ** 2))
-        else:
-            # Binary Restarts
-            self.epsilon = self.epsilon
-            if self.delta:
-                self.delta = self.delta
-
         # set new noisy estimate for the number of ids (every query returns a list, so we take the first value)
         self.num_ins_ids = CountQuery(sensitivity=1, epsilon=self.epsilon).get_private_answer(self.ins_ids)[0]
+
+        # halt Interval Restarts for future calls if noisy estimate for the number of ids
+        # is less than num_deletions_error
+        num_deletions_error = (1 / self.epsilon
+                               * np.power(np.log2(max(self.num_nodes_nb_del_count, 1)), 1.5)  # TODO: check t
+                               * np.log2(self.beta))
+        if self.num_ins_ids < 2 * num_deletions_error:
+            print("Halted node")
+            self.halt_node = True
 
         # recompute answers
         self.compute_answers()

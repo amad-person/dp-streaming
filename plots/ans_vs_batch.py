@@ -66,6 +66,7 @@ if __name__ == "__main__":
             batch_nums += list(range(num_batches))
 
         if comparison_type == "all":
+            # load answer values for Interval Restarts
             int_priv_ans_path = f"{exp_save_dir}/int_private_ans_run{run}"
             if batches is not None:
                 int_priv_ans_path += f"_batches{batches}"

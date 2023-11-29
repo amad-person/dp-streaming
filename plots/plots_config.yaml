@@ -1,5 +1,5 @@
 dataset_prefix: "adult_small"
-batch_size: 50
+batch_size: 5
 window_size: 3
 query_type: "mwem_pgm"
 comparison_type: "all"

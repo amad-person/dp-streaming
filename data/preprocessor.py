@@ -669,11 +669,11 @@ if __name__ == "__main__":
     adult_size = "small"
     encoding_type = "ohe"
     adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
-    batch_size = 50
-    window_size = 3
-    create_adult_dataset(path=adult_dataset_path,
-                         domain_path=adult_dataset_domain_path,
-                         size=adult_size,
-                         enc_type=encoding_type,
-                         batch_size=batch_size,
-                         window_size=window_size)
+    for batch_size in [5]:
+        for window_size in [1, 3, 5, 10]:
+            create_adult_dataset(path=adult_dataset_path,
+                                 domain_path=adult_dataset_domain_path,
+                                 size=adult_size,
+                                 enc_type=encoding_type,
+                                 batch_size=batch_size,
+                                 window_size=window_size)

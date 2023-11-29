@@ -34,52 +34,69 @@ if __name__ == "__main__":
     # create data for plot
     mechanism_labels, batch_nums, error_values = [], [], []
     for run in range(num_runs):
-        true_ans_path = f"{exp_save_dir}/nb_true_ans_run{run}"
-        if batches is not None:
-            true_ans_path += f"_batches{batches}"
-        true_ans_path += ".npz"
-        true_ans = np.load(true_ans_path)["arr_0"]
-        num_batches, num_queries = true_ans.shape
-
         # load error values for Naive Binary
+        nb_true_ans_path = f"{exp_save_dir}/nb_true_ans_run{run}"
+        if batches is not None:
+            nb_true_ans_path += f"_batches{batches}"
+        nb_true_ans_path += ".npz"
+        nb_true_ans = np.load(nb_true_ans_path)["arr_0"]
+        nb_num_batches, nb_num_queries = nb_true_ans.shape
+
         nb_priv_ans_path = f"{exp_save_dir}/nb_private_ans_run{run}"
         if batches is not None:
             nb_priv_ans_path += f"_batches{batches}"
         nb_priv_ans_path += ".npz"
         nb_priv_ans = np.load(nb_priv_ans_path)["arr_0"]
-        for query_idx in range(num_queries):
-            query_true_answers = true_ans[:, query_idx]  # query answers are stored in columns
+        for query_idx in range(nb_num_queries):
+            query_true_answers = nb_true_ans[:, query_idx]  # query answers are stored in columns
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
-            error_values += (np.abs(query_nb_answers - query_true_answers)/(query_true_answers + 1e-32)).tolist()
-            mechanism_labels += ["Naive Binary"] * num_batches
-            batch_nums += list(range(num_batches))
+            error_values += (np.abs(query_nb_answers - query_true_answers + 1e-32) /
+                             (query_true_answers + 1e-32)).tolist()
+            mechanism_labels += ["Naive Binary"] * nb_num_batches
+            batch_nums += list(range(nb_num_batches))
 
         # load error values for Binary Restarts
+        br_true_ans_path = f"{exp_save_dir}/br_true_ans_run{run}"
+        if batches is not None:
+            br_true_ans_path += f"_batches{batches}"
+        br_true_ans_path += ".npz"
+        br_true_ans = np.load(br_true_ans_path)["arr_0"]
+        br_num_batches, br_num_queries = br_true_ans.shape
+
         br_priv_ans_path = f"{exp_save_dir}/br_private_ans_run{run}"
         if batches is not None:
             br_priv_ans_path += f"_batches{batches}"
         br_priv_ans_path += ".npz"
         br_priv_ans = np.load(br_priv_ans_path)["arr_0"]
-        for query_idx in range(num_queries):
-            query_true_answers = true_ans[:, query_idx]
+        for query_idx in range(br_num_queries):
+            query_true_answers = br_true_ans[:, query_idx]
             query_br_answers = br_priv_ans[:, query_idx]
-            error_values += (np.abs(query_br_answers - query_true_answers)/(query_true_answers + 1e-32)).tolist()
-            mechanism_labels += ["Binary Restarts"] * num_batches
-            batch_nums += list(range(num_batches))
+            error_values += (np.abs(query_br_answers - query_true_answers + 1e-32) /
+                             (query_true_answers + 1e-32)).tolist()
+            mechanism_labels += ["Binary Restarts"] * br_num_batches
+            batch_nums += list(range(br_num_batches))
 
         if comparison_type == "all":
             # load error values for Interval Restarts
+            int_true_ans_path = f"{exp_save_dir}/int_true_ans_run{run}"
+            if batches is not None:
+                int_true_ans_path += f"_batches{batches}"
+            int_true_ans_path += ".npz"
+            int_true_ans = np.load(int_true_ans_path)["arr_0"]
+            int_num_batches, int_num_queries = int_true_ans.shape
+
             int_priv_ans_path = f"{exp_save_dir}/int_private_ans_run{run}"
             if batches is not None:
                 int_priv_ans_path += f"_batches{batches}"
             int_priv_ans_path += ".npz"
             int_priv_ans = np.load(int_priv_ans_path)["arr_0"]
-            for query_idx in range(num_queries):
-                query_true_answers = true_ans[:, query_idx]
+            for query_idx in range(int_num_queries):
+                query_true_answers = int_true_ans[:, query_idx]
                 query_int_answers = int_priv_ans[:, query_idx]
-                error_values += (np.abs(query_int_answers - query_true_answers)/(query_true_answers + 1e-32)).tolist()
-                mechanism_labels += ["Interval Restarts"] * num_batches
-                batch_nums += list(range(num_batches))
+                error_values += (np.abs(query_int_answers - query_true_answers + 1e-32) /
+                                 (query_true_answers + 1e-32)).tolist()
+                mechanism_labels += ["Interval Restarts"] * int_num_batches
+                batch_nums += list(range(int_num_batches))
 
     data_dict = {
         "Mechanism": mechanism_labels,
@@ -92,5 +109,3 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig(f"{exp_save_dir}/rel_error_vs_batch.png", dpi=1000)
     # plt.show()
-
-
