@@ -63,9 +63,7 @@ The following nodes are currently supported:
 
 ## Demo
 
-![ans_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Fans_vs_batch.png)
-
-![avg_error_vs_batch.png](save%2Fnb_vs_br_count_eps10_0_10runs_1234oseed%2Favg_error_vs_batch.png)
+![ans_vs_batch.png](save%2Fdemo_adult_dataset.png)
 
 ## Credits
 
