@@ -444,9 +444,9 @@ class IntervalRestartsQueryEngine(QueryEngine):
 
 # Testing on the Adult dataset
 if __name__ == "__main__":
-    for batch_size in [5, 10]:
+    for batch_size in [5]:
         print("Batch Size:", batch_size)
-        for window_size in [1, 3, 5, 10]:
+        for window_size in [10]:
             print("Window Size:", window_size)
             dataset_prefix = "adult_small"
             dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
@@ -491,7 +491,7 @@ if __name__ == "__main__":
             num_threads = 4
 
             # run mechanisms on the same dataset NUM_RUNS number of times
-            for run in range(num_runs):
+            for run in range(1, num_runs):
                 print("On run number:", run)
                 seed = org_seed + run
                 rng = np.random.default_rng(seed)
@@ -509,38 +509,38 @@ if __name__ == "__main__":
                 np.savez(f"{exp_save_dir}/nb_true_ans_run{run}", np.array(nb_true_ans))
                 np.savez(f"{exp_save_dir}/nb_private_ans_run{run}", np.array(nb_private_ans))
 
-            for run in range(num_runs):
-                print("On run number:", run)
-                seed = org_seed + run
-                rng = np.random.default_rng(seed)
+            # for run in range(num_runs):
+            #     print("On run number:", run)
+            #     seed = org_seed + run
+            #     rng = np.random.default_rng(seed)
+            #
+            #     print("Running Binary Restarts Mechanism")
+            #     br_query = MwemPgmQuery(dataset=dataset, predicates=predicates, k=2, rng=rng)
+            #     binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query,
+            #                                                              epsilon, delta,
+            #                                                              save_path_prefix=f"{exp_save_dir}/run{run}_br",
+            #                                                              num_threads=num_threads)
+            #     br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches,
+            #                                                                    start_from_batch_num=start_from_batch_num)
+            #     print("True Answers:", br_true_ans.tolist())
+            #     print("Private Answers:", br_private_ans.tolist())
+            #     np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
+            #     np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))
 
-                print("Running Binary Restarts Mechanism")
-                br_query = MwemPgmQuery(dataset=dataset, predicates=predicates, k=2, rng=rng)
-                binary_restarts_query_engine = BinaryRestartsQueryEngine(dataset, br_query,
-                                                                         epsilon, delta,
-                                                                         save_path_prefix=f"{exp_save_dir}/run{run}_br",
-                                                                         num_threads=num_threads)
-                br_true_ans, br_private_ans = binary_restarts_query_engine.run(num_batches=num_batches,
-                                                                               start_from_batch_num=start_from_batch_num)
-                print("True Answers:", br_true_ans.tolist())
-                print("Private Answers:", br_private_ans.tolist())
-                np.savez(f"{exp_save_dir}/br_true_ans_run{run}", np.array(br_true_ans))
-                np.savez(f"{exp_save_dir}/br_private_ans_run{run}", np.array(br_private_ans))
-
-            for run in range(num_runs):
-                print("On run number:", run)
-                seed = org_seed + run
-                rng = np.random.default_rng(seed)
-
-                print("Running Interval Restarts Mechanism")
-                int_query = MwemPgmQuery(dataset=dataset, predicates=predicates, k=2, rng=rng)
-                interval_restarts_query_engine = IntervalRestartsQueryEngine(dataset, int_query,
-                                                                             epsilon, delta,
-                                                                             save_path_prefix=f"{exp_save_dir}/run{run}_int",
-                                                                             num_threads=num_threads)
-                int_true_ans, int_private_ans = interval_restarts_query_engine.run(num_batches=num_batches,
-                                                                                   start_from_batch_num=start_from_batch_num)
-                print("True Answers:", int_true_ans.tolist())
-                print("Private Answers:", int_private_ans.tolist())
-                np.savez(f"{exp_save_dir}/int_true_ans_run{run}", np.array(int_true_ans))
-                np.savez(f"{exp_save_dir}/int_private_ans_run{run}", np.array(int_private_ans))
+            # for run in range(num_runs):
+            #     print("On run number:", run)
+            #     seed = org_seed + run
+            #     rng = np.random.default_rng(seed)
+            #
+            #     print("Running Interval Restarts Mechanism")
+            #     int_query = MwemPgmQuery(dataset=dataset, predicates=predicates, k=2, rng=rng)
+            #     interval_restarts_query_engine = IntervalRestartsQueryEngine(dataset, int_query,
+            #                                                                  epsilon, delta,
+            #                                                                  save_path_prefix=f"{exp_save_dir}/run{run}_int",
+            #                                                                  num_threads=num_threads)
+            #     int_true_ans, int_private_ans = interval_restarts_query_engine.run(num_batches=num_batches,
+            #                                                                        start_from_batch_num=start_from_batch_num)
+            #     print("True Answers:", int_true_ans.tolist())
+            #     print("Private Answers:", int_private_ans.tolist())
+            #     np.savez(f"{exp_save_dir}/int_true_ans_run{run}", np.array(int_true_ans))
+            #     np.savez(f"{exp_save_dir}/int_private_ans_run{run}", np.array(int_private_ans))

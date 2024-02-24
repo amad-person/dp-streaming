@@ -50,7 +50,7 @@ if __name__ == "__main__":
         for query_idx in range(nb_num_queries):
             query_true_answers = nb_true_ans[:, query_idx]  # query answers are stored in columns
             query_nb_answers = nb_priv_ans[:, query_idx]  # query answers are stored in columns
-            error_values += (np.abs(query_nb_answers - query_true_answers + 1e-32) /
+            error_values += (np.abs(query_nb_answers - query_true_answers) /
                              (query_true_answers + 1e-32)).tolist()
             mechanism_labels += ["Naive Binary"] * nb_num_batches
             batch_nums += list(range(nb_num_batches))
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         for query_idx in range(br_num_queries):
             query_true_answers = br_true_ans[:, query_idx]
             query_br_answers = br_priv_ans[:, query_idx]
-            error_values += (np.abs(query_br_answers - query_true_answers + 1e-32) /
+            error_values += (np.abs(query_br_answers - query_true_answers) /
                              (query_true_answers + 1e-32)).tolist()
             mechanism_labels += ["Binary Restarts"] * br_num_batches
             batch_nums += list(range(br_num_batches))
@@ -93,7 +93,7 @@ if __name__ == "__main__":
             for query_idx in range(int_num_queries):
                 query_true_answers = int_true_ans[:, query_idx]
                 query_int_answers = int_priv_ans[:, query_idx]
-                error_values += (np.abs(query_int_answers - query_true_answers + 1e-32) /
+                error_values += (np.abs(query_int_answers - query_true_answers) /
                                  (query_true_answers + 1e-32)).tolist()
                 mechanism_labels += ["Interval Restarts"] * int_num_batches
                 batch_nums += list(range(int_num_batches))

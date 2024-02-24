@@ -540,7 +540,34 @@ def get_config_for_acs_data_public_cov_dataset(domain, size, enc_type):
             }
     elif size == "medium":
         if enc_type == "ohe":
-            pass
+            return {
+                "sdtypes": {
+                    "AGEP": "numerical",
+                    "MAR": "categorical",
+                    "SEX": "categorical",
+                    "DIS": "categorical",
+                    "DEAR": "categorical",
+                    "DEYE": "categorical",
+                    "DREM": "categorical",
+                    "PINCP": "numerical",
+                    "ESR": "categorical",
+                    "FER": "categorical",
+                    "PUBCOV": "categorical"
+                },
+                "transformers": {
+                    "AGEP": None,
+                    "MAR": OrderedLabelEncoder(order=domain["MAR"]),
+                    "SEX": OrderedLabelEncoder(order=domain["SEX"]),
+                    "DIS": OrderedLabelEncoder(order=domain["DIS"]),
+                    "DEAR": OrderedLabelEncoder(order=domain["DEAR"]),
+                    "DEYE": OrderedLabelEncoder(order=domain["DEYE"]),
+                    "DREM": OrderedLabelEncoder(order=domain["DREM"]),
+                    "PINCP": None,
+                    "ESR": OrderedLabelEncoder(order=domain["ESR"]),
+                    "FER": OrderedLabelEncoder(order=domain["FER"]),
+                    "PUBCOV": OrderedLabelEncoder(order=domain["PUBCOV"]),
+                }
+            }
         elif enc_type == "binarized":
             pass
     elif size == "full":
@@ -648,32 +675,32 @@ def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_s
 
 
 if __name__ == "__main__":
-    # data_source = ACSDataSource(survey_year='2018',
-    #                             horizon='1-Year',
-    #                             survey='person')
-    # acs_data = data_source.get_data(states=["NY"], download=True)
-    # acs_data_subset = "public_cov"
-    # acs_data_size = "full"
-    # encoding_type = "ohe"
-    # batch_size = 1000
-    # window_size = 3
-    # acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-    # create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
-    #                               size=acs_data_size,
-    #                               acs_data=acs_data,
-    #                               enc_type=encoding_type,
-    #                               batch_size=batch_size,
-    #                               window_size=window_size)
-
-    adult_dataset_path = f"./adult.csv"
-    adult_size = "small"
+    data_source = ACSDataSource(survey_year='2018',
+                                horizon='1-Year',
+                                survey='person')
+    acs_data = data_source.get_data(states=["NY"], download=True)
+    acs_data_subset = "public_cov"
+    acs_data_size = "medium"
     encoding_type = "ohe"
-    adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
-    for batch_size in [5]:
+    for batch_size in [5, 10, 25, 50]:
         for window_size in [1, 3, 5, 10]:
-            create_adult_dataset(path=adult_dataset_path,
-                                 domain_path=adult_dataset_domain_path,
-                                 size=adult_size,
-                                 enc_type=encoding_type,
-                                 batch_size=batch_size,
-                                 window_size=window_size)
+            acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
+            create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+                                          size=acs_data_size,
+                                          acs_data=acs_data,
+                                          enc_type=encoding_type,
+                                          batch_size=batch_size,
+                                          window_size=window_size)
+
+    # adult_dataset_path = f"./adult.csv"
+    # adult_size = "small"
+    # encoding_type = "ohe"
+    # adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+    # for batch_size in [5]:
+    #     for window_size in [1, 3, 5, 10]:
+    #         create_adult_dataset(path=adult_dataset_path,
+    #                              domain_path=adult_dataset_domain_path,
+    #                              size=adult_size,
+    #                              enc_type=encoding_type,
+    #                              batch_size=batch_size,
+    #                              window_size=window_size)
