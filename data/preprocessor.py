@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from rdt import HyperTransformer
 from rdt.transformers import OrderedLabelEncoder
-from folktables import ACSDataSource, ACSHealthInsurance, ACSMobility, ACSPublicCoverage, ACSTravelTime
+from folktables import ACSDataSource, ACSHealthInsurance, ACSPublicCoverage
 
 
 def create_toy_dataset(path=None, domain_path=None):
@@ -674,23 +674,123 @@ def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_s
               index_label="Person ID")
 
 
+def get_config_for_ny_taxi_dataset(domain, size, enc_type):
+    if size == "medium":
+        if enc_type == "ohe":
+            return {
+                "sdtypes": {
+                    "VendorID": "categorical",
+                    "passenger_count": "categorical",
+                    "RatecodeID": "categorical",
+                    "store_and_fwd_flag": "categorical",
+                    "payment_type": "categorical",
+                },
+                "transformers": {
+                    "VendorID": OrderedLabelEncoder(order=domain["VendorID"]),
+                    "passenger_count": None,
+                    "RatecodeID": OrderedLabelEncoder(order=domain["RatecodeID"]),
+                    "store_and_fwd_flag": OrderedLabelEncoder(order=domain["store_and_fwd_flag"]),
+                    "payment_type": OrderedLabelEncoder(order=domain["payment_type"]),
+                }
+            }
+        elif enc_type == "binarized":
+            return {
+                "sdtypes": {
+                    "VendorID": "categorical",
+                    "passenger_count": "numerical",
+                    "RatecodeID": "categorical",
+                    "store_and_fwd_flag": "categorical",
+                    "payment_type": "categorical",
+                },
+                "transformers": {
+                    "VendorID": OrderedLabelEncoder(order=domain["VendorID"]),
+                    "passenger_count": None,
+                    "RatecodeID": OrderedLabelEncoder(order=domain["RatecodeID"]),
+                    "store_and_fwd_flag": OrderedLabelEncoder(order=domain["store_and_fwd_flag"]),
+                    "payment_type": OrderedLabelEncoder(order=domain["payment_type"]),
+                }
+            }
+
+
+def create_ny_taxi_dataset(path, year, domain_path, size, enc_type, batch_size=None, window_size=None):
+    # read dataset and domain
+    df = pd.read_parquet(path)
+    with open(domain_path, "r") as domain_file:
+        domain = json.load(domain_file)
+
+    # select rows with pick up times in specified year
+    df["tpep_pickup_datetime"] = df["tpep_pickup_datetime"].astype("datetime64[ns]")
+    df = df[df["tpep_pickup_datetime"].dt.year == year]
+
+    # sort by pick up time
+    df = df.sort_values(by="tpep_pickup_datetime", ascending=True).reset_index()
+
+    # keep timestamp columns
+    insertion_times = df["tpep_pickup_datetime"]
+    deletion_times = df["tpep_dropoff_datetime"]
+
+    # drop columns not in the domain
+    columns_to_keep = list(domain.keys())
+    df = df[columns_to_keep]
+
+    # remove rows if any of the features are NaN / missing
+    df = df.dropna(how="any")
+
+    if enc_type == "ohe":
+        # make continuous columns categorical (integers)
+        if "passenger_count" in df.columns:
+            df["passenger_count"] = pd.cut(df["passenger_count"],
+                                           bins=domain["passenger_count"],
+                                           ordered=True,
+                                           labels=False)
+    elif enc_type == "binarized":
+        # make continuous columns integers
+        if "passenger_count" in df.columns:
+            df["passenger_count"] = df["passenger_count"].astype(int)
+
+    # get RDT transformer config based on 'size' and 'enc_type'
+    ht_config = get_config_for_ny_taxi_dataset(domain, size, enc_type)
+    ht = HyperTransformer()
+    ht.set_config(config=ht_config)
+    df = ht.fit_transform(df)
+
+    # process pick up and drop off times
+    df["Insertion Time"] = insertion_times
+    df["Deletion Time"] = deletion_times
+
+    # save processed dataset
+    df.to_csv(f"./ny_taxi_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+              index_label="Person ID")
+
+
 if __name__ == "__main__":
-    data_source = ACSDataSource(survey_year='2018',
-                                horizon='1-Year',
-                                survey='person')
-    acs_data = data_source.get_data(states=["NY"], download=True)
-    acs_data_subset = "public_cov"
-    acs_data_size = "medium"
-    encoding_type = "ohe"
-    for batch_size in [5, 10, 25, 50]:
-        for window_size in [1, 3, 5, 10]:
-            acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-            create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
-                                          size=acs_data_size,
-                                          acs_data=acs_data,
-                                          enc_type=encoding_type,
-                                          batch_size=batch_size,
-                                          window_size=window_size)
+    ny_taxi_data_year = 2023
+    ny_taxi_data_path = f"./yellow_tripdata_2023-01.parquet"
+    ny_taxi_data_size = "medium"
+    encoding_type = "binarized"
+    ny_taxi_data_domain_path = f"./ny_taxi_{ny_taxi_data_size}_{encoding_type}_domain.json"
+    create_ny_taxi_dataset(path=ny_taxi_data_path,
+                           year=ny_taxi_data_year,
+                           domain_path=ny_taxi_data_domain_path,
+                           size=ny_taxi_data_size,
+                           enc_type=encoding_type)
+
+    # data_source = ACSDataSource(survey_year='2018',
+    #                             horizon='1-Year',
+    #                             survey='person')
+    # acs_data = data_source.get_data(states=["NY"], download=True)
+    # acs_data_subset = "public_cov"
+    # acs_data_size = "medium"
+    # encoding_type = "ohe"
+    # for batch_size in [5, 10, 25, 50]:
+    #     for window_size in [1, 3, 5, 10]:
+    #         acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
+    #         create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+    #                                       size=acs_data_size,
+    #                                       acs_data=acs_data,
+    #                                       enc_type=encoding_type,
+    #                                       batch_size=batch_size,
+    #                                       window_size=window_size)
 
     # adult_dataset_path = f"./adult.csv"
     # adult_size = "small"

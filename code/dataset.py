@@ -213,11 +213,34 @@ if __name__ == "__main__":
     #     print("Insertions:", ins_ids)
     #     print("Deletions", del_ids)
 
-    dataset_name = "adult_small"
-    time_int = pd.DateOffset(days=1)
-    time_int_str = "1day"
+    # dataset_name = "adult_small"
+    # time_int = pd.DateOffset(days=1)
+    # time_int_str = "1day"
+    # pmw_encoding_type = "binarized"
+    # dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
+    #                                  domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
+    #                                  id_col="Person ID",
+    #                                  insertion_time_col="Insertion Time",
+    #                                  deletion_time_col="Deletion Time",
+    #                                  time_interval=time_int,
+    #                                  hist_repr_type=pmw_encoding_type)
+    # dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
+    # for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
+    #     print("Batch:", i)
+    #     print("Insertions:", ins_ids)
+    #     print("Deletions", del_ids)
+    #
+    # hist = dataset.get_hist_repr(ids=dataset.df[dataset.id_col])
+    # print("Dimension of the hist representation:", dataset.get_hist_repr_dim())
+
+    dataset_name = "ny_taxi_medium"
+    time_int = pd.DateOffset(minutes=30)
+    time_int_str = "30mins"
     pmw_encoding_type = "binarized"
-    dataset = Dataset.load_from_path(f"../data/{dataset_name}_{pmw_encoding_type}.csv",
+    batch_size = None
+    window_size = None
+    dataset = Dataset.load_from_path(f"../data/{dataset_name}_batch{batch_size}_"
+                                     f"window{window_size}_{pmw_encoding_type}.csv",
                                      domain_path=f"../data/{dataset_name}_{pmw_encoding_type}_domain.json",
                                      id_col="Person ID",
                                      insertion_time_col="Insertion Time",
