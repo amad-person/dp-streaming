@@ -37,15 +37,17 @@ if __name__ == "__main__":
             time_int_str = exp_config["time_int_str"]
 
             data_encoding_type = exp_config["data_encoding_type"]
-            dataset = Dataset.load_from_path(f"../data/{dataset_name}_{data_encoding_type}.csv",
-                                             domain_path=f"../data/{dataset_prefix}_{data_encoding_type}_domain.json",
+            dataset = Dataset.load_from_path(Path(__file__).parent / f"../data/{dataset_name}_{data_encoding_type}.csv",
+                                             domain_path=Path(__file__).parent / f"../data/{dataset_prefix}_"
+                                                                                 f"{data_encoding_type}_domain.json",
                                              id_col="Person ID",
                                              insertion_time_col="Insertion Time",
                                              deletion_time_col="Deletion Time",
                                              time_interval=time_int,
                                              hist_repr_type=data_encoding_type)
             dataset.df = dataset.df[dataset.df["insertion_batch"] != dataset.df["deletion_batch"]]
-            dataset.save_to_path(f"../data/{dataset_name}_{data_encoding_type}_batched_{time_int_str}.csv")
+            dataset.save_to_path(Path(__file__).parent / f"../data/{dataset_name}_{data_encoding_type}"
+                                                         f"_batched_{time_int_str}.csv")
 
             query_type = exp_config["query_type"]
             comparison_type = exp_config["comparison_type"]
@@ -56,8 +58,8 @@ if __name__ == "__main__":
                 privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
             num_runs = exp_config["num_runs"]
             org_seed = exp_config["org_seed"]
-            exp_save_dir = Path(f"../save/{dataset_name}_{comparison_type}_{query_type}"
-                                f"_{privstr}_{num_runs}runs_{org_seed}oseed")
+            exp_save_dir = Path(__file__).parent / Path(f"../save/{dataset_name}_{comparison_type}_{query_type}"
+                                                        f"_{privstr}_{num_runs}runs_{org_seed}oseed")
             if not Path.is_dir(exp_save_dir):
                 os.mkdir(exp_save_dir)
             start_from_batch_num = exp_config["start_from_batch_num"]
