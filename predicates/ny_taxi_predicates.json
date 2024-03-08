@@ -1,0 +1,25 @@
+{
+  "predicates": [
+    "VendorID == 0",
+    "VendorID == 1",
+    "store_and_fwd_flag == 1",
+    "store_and_fwd_flag == 0",
+    "payment_type == 0",
+    "payment_type == 1",
+    "payment_type == 2",
+    "payment_type == 3",
+    "payment_type == 4",
+    "payment_type == 5",
+    "payment_type == 6",
+    "passenger_count == 1 & VendorID == 0",
+    "passenger_count == 1 & VendorID == 1",
+    "passenger_count == 2 & VendorID == 0",
+    "passenger_count == 2 & VendorID == 1",
+    "passenger_count == 3 & VendorID == 0",
+    "passenger_count == 3 & VendorID == 1",
+    "RatecodeID == 1 & payment_type == 0 & store_and_fwd_flag == 1",
+    "RatecodeID == 1 & payment_type == 1 & store_and_fwd_flag == 0",
+    "RatecodeID == 2 & payment_type == 0 & store_and_fwd_flag == 1",
+    "RatecodeID == 3 & payment_type == 1 & store_and_fwd_flag == 0"
+  ]
+}

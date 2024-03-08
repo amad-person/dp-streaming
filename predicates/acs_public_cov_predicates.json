@@ -1,0 +1,27 @@
+{
+  "predicates": [
+    "PUBCOV == 0",
+    "PUBCOV == 1",
+    "DIS == 0",
+    "DIS == 1",
+    "ESR == 0",
+    "ESR == 1",
+    "ESR == 2",
+    "ESR == 3",
+    "ESR == 4",
+    "ESR == 5",
+    "ESR == 6",
+    "DREM == 0 & DEYE == 0",
+    "DREM == 0 & DEYE == 1",
+    "DREM == 1 & DEYE == 0",
+    "DREM == 1 & DEYE == 1",
+    "SEX == 0 & FER == 0 & DIS == 0",
+    "SEX == 0 & FER == 0 & DIS == 1",
+    "SEX == 0 & FER == 1 & DIS == 0",
+    "SEX == 0 & FER == 1 & DIS == 1",
+    "SEX == 1 & FER == 0 & DIS == 0",
+    "SEX == 1 & FER == 0 & DIS == 1",
+    "SEX == 1 & FER == 1 & DIS == 0",
+    "SEX == 1 & FER == 1 & DIS == 1"
+  ]
+}

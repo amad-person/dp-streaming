@@ -1,0 +1,32 @@
+{
+  "predicates": [
+    "sex == 0 & race == 0",
+    "sex == 1 & race == 0",
+    "sex == 0 & race == 1",
+    "sex == 1 & race == 1",
+    "sex == 0 & race == 2",
+    "sex == 1 & race == 2",
+    "sex == 0 & race == 3",
+    "sex == 1 & race == 3",
+    "sex == 0 & race == 4",
+    "sex == 1 & race == 4",
+    "sex == 0 & income == 0",
+    "sex == 1 & income == 0",
+    "sex == 0 & income == 1",
+    "sex == 1 & income == 1",
+    "sex == 0",
+    "sex == 1",
+    "race == 0",
+    "race == 1",
+    "race == 2",
+    "race == 3",
+    "race == 4",
+    "income == 0",
+    "income == 1",
+    "sex == 0 & race == 0 & income == 0",
+    "sex == 0 & race == 1 & income == 0",
+    "sex == 1 & race == 2 & income == 0",
+    "sex == 0 & race == 3 & income == 1",
+    "sex == 1 & race == 4 & income == 1"
+  ]
+}
