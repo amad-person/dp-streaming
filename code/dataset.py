@@ -234,8 +234,8 @@ if __name__ == "__main__":
     # print("Dimension of the hist representation:", dataset.get_hist_repr_dim())
 
     dataset_name = "ny_taxi_medium"
-    time_int = pd.DateOffset(minutes=30)
-    time_int_str = "30mins"
+    time_int = pd.DateOffset(minutes=10)
+    time_int_str = "10mins"
     pmw_encoding_type = "binarized"
     batch_size = None
     window_size = None
@@ -247,6 +247,7 @@ if __name__ == "__main__":
                                      deletion_time_col="Deletion Time",
                                      time_interval=time_int,
                                      hist_repr_type=pmw_encoding_type)
+    dataset.df = dataset.df[dataset.df["insertion_batch"] != dataset.df["deletion_batch"]]
     dataset.save_to_path(f"../data/{dataset_name}_{pmw_encoding_type}_batched_{time_int_str}.csv")
     for i, (ins_ids, del_ids) in enumerate(dataset.get_batches()):
         print("Batch:", i)

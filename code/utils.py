@@ -12,6 +12,17 @@ from scipy import sparse
 from scipy.special import logsumexp, softmax
 
 
+def get_time_offset_obj(time_int_type, time_int_quantity):
+    time_offset_obj = None
+    if time_int_type == "days":
+        time_offset_obj = pd.DateOffset(days=time_int_quantity)
+    elif time_int_type == "hours":
+        time_offset_obj = pd.DateOffset(hours=time_int_quantity)
+    elif time_int_type == "minutes":
+        time_offset_obj = pd.DateOffset(minutes=time_int_quantity)
+    return time_offset_obj
+
+
 def get_first_non_zero_lsb(binary_num):
     binary_str = str(binary_num)[::-1]
     return binary_str.index("1")
