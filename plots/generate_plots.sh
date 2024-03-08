@@ -1,5 +1,11 @@
 #!/bin/bash
 
-python3 abs_error_vs_batch.py
-python3 ans_vs_batch.py
-python3 rel_error_vs_batch.py
+CONFIG="../configs/acs_public_cov_exp_config.yaml"
+
+python3 abs_error_vs_batch.py --config=$CONFIG &
+python3 ans_vs_batch.py --config=$CONFIG &
+python3 rel_error_vs_batch.py --config=$CONFIG &
+
+wait
+
+echo "All plots generated!"
