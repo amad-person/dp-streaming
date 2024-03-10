@@ -65,6 +65,11 @@ The following nodes are currently supported:
 
 ![ans_vs_batch.png](save%2Fdemo_adult_dataset.png)
 
+## Installation
+
+1. Run `pip install -r requirements.txt`
+2. Run `pip install git+https://github.com/ryan112358/private-pgm.git`
+
 ## Credits
 
 1. https://arxiv.org/pdf/2209.01387.pdf
