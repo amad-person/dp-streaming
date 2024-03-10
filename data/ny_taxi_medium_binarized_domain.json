@@ -1,0 +1,28 @@
+{
+  "VendorID": [
+    1,
+    2
+  ],
+  "passenger_count": "Binarized",
+  "RatecodeID": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    99
+  ],
+  "store_and_fwd_flag": [
+    "Y",
+    "N"
+  ],
+  "payment_type": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}
