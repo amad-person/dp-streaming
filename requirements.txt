@@ -1,3 +1,4 @@
+codetiming==1.4.0
 fastparquet==2024.2.0
 folktables==0.0.12
 matplotlib==3.8.0

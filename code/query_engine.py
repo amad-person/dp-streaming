@@ -10,6 +10,7 @@ from pathlib import Path
 import dill
 import numpy as np
 import pandas as pd
+from codetiming import Timer
 
 import utils
 from dataset import Dataset
@@ -23,10 +24,6 @@ logger.setLevel(logging.WARNING)
 
 stdoutHandler = logging.StreamHandler(stream=sys.stdout)
 fileHandler = logging.FileHandler("logs.txt")
-
-logFmt = logging.Formatter(
-    "%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d >>> %(message)s"
-)
 
 logger.addHandler(stdoutHandler)
 logger.addHandler(fileHandler)
@@ -91,6 +88,8 @@ class NaiveBinaryQueryEngine(QueryEngine):
             node_i = i + 1
             logger.debug(f"Created Node ID: {node_i}")
 
+            batch_timer = Timer(logger=None)
+
             # start building new tree
             tree_idx = utils.get_tree_idx(node_i)
             if tree_idx != current_tree_idx:
@@ -99,10 +98,13 @@ class NaiveBinaryQueryEngine(QueryEngine):
             logger.debug(f"Current Tree ID: {current_tree_idx}")
 
             # build current nodes
+            batch_timer.start()
             self.query.set_privacy_parameters(epsilon=self.epsilon / utils.get_tree_height(node_i),
                                               delta=self.delta)
             ins_node = NaiveNode(ins_ids, self.query)
             del_node = NaiveNode(del_ids, self.query)
+            node_init_time = batch_timer.stop()
+
             num_nodes += 1
             logger.debug(f"Query for Node {node_i}: {self.query}")
 
@@ -113,6 +115,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
             del_tree_nodes.append(del_node)
 
             # update maps by merging nodes
+            batch_timer.start()
             n = num_nodes
             while n > 0:
                 if n % 2 == 0:
@@ -129,6 +132,7 @@ class NaiveBinaryQueryEngine(QueryEngine):
                 n = n / 2
             self.naive_binary_insertions_map[current_tree_idx] = ins_tree_nodes
             self.naive_binary_deletions_map[current_tree_idx] = del_tree_nodes
+            update_trees_time = batch_timer.stop()
             logger.debug(f"Naive Binary Insertions Map: {self.naive_binary_insertions_map}")
             logger.debug(f"Naive Binary Deletions Map: {self.naive_binary_deletions_map}")
 
@@ -146,10 +150,12 @@ class NaiveBinaryQueryEngine(QueryEngine):
             insertion_pool.close()
             insertion_pool.join()
 
+            batch_timer.start()
             insertion_pool = Pool(self.num_threads)
             insertion_private_results = insertion_pool.map(private_answer_worker, (node for node in insertion_nodes))
             insertion_pool.close()
             insertion_pool.join()
+            insertion_private_answers_time = batch_timer.stop()
 
             deletion_nodes = []
             for tree_idx, tree_nodes in self.naive_binary_deletions_map.items():
@@ -163,10 +169,12 @@ class NaiveBinaryQueryEngine(QueryEngine):
             deletion_pool.close()
             deletion_pool.join()
 
+            batch_timer.start()
             deletion_pool = Pool(self.num_threads)
             deletion_private_results = deletion_pool.map(private_answer_worker, (node for node in deletion_nodes))
             deletion_pool.close()
             deletion_pool.join()
+            deletion_private_answers_time = batch_timer.stop()
 
             for result in insertion_true_results:
                 true_answer += result
@@ -181,6 +189,19 @@ class NaiveBinaryQueryEngine(QueryEngine):
             # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
             np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save timing info for current batch
+            with open(f"{self.save_path_prefix}_timing_batch{i}.pkl", "wb") as f:
+                time_dict = {
+                    "node_init_time": node_init_time,
+                    "update_trees_time": update_trees_time,
+                    "propagate_deletions_time": 0,
+                    "private_answers_time": insertion_private_answers_time + deletion_private_answers_time,
+                }
+                logger.debug(f"Naive Binary Time: {time_dict}")
+                dill.dump({
+                    "time": time_dict
+                }, f)
 
             # save state into checkpoint file
             if save_checkpts is True:
@@ -236,6 +257,8 @@ class BinaryRestartsQueryEngine(QueryEngine):
             node_i = i + 1
             logger.debug(f"Created Node ID: {node_i}")
 
+            batch_timer = Timer(logger=None)
+
             # start building new tree
             tree_idx = utils.get_tree_idx(node_i)
             if tree_idx != current_tree_idx:
@@ -244,11 +267,14 @@ class BinaryRestartsQueryEngine(QueryEngine):
             logger.debug(f"Current Tree ID: {current_tree_idx}")
 
             # build current node
+            batch_timer.start()
             epsilon_for_node = self.epsilon / utils.get_tree_height(node_i)
             self.query.set_privacy_parameters(epsilon=epsilon_for_node, delta=self.delta)
             node = RestartNode(ins_ids, self.query,
                                epsilon=epsilon_for_node, delta=self.delta,
                                num_threads=self.num_threads)
+            node_init_time = batch_timer.stop()
+
             num_nodes += 1
             logger.debug(f"Query for Node {node_i}: {self.query}")
 
@@ -257,6 +283,7 @@ class BinaryRestartsQueryEngine(QueryEngine):
             tree_nodes.append(node)
 
             # update map by merging nodes
+            batch_timer.start()
             n = num_nodes
             while n > 0:
                 if n % 2 == 0:
@@ -267,12 +294,15 @@ class BinaryRestartsQueryEngine(QueryEngine):
                     tree_nodes.append(merged_node)
                 n = n / 2
             self.binary_restarts_map[current_tree_idx] = tree_nodes
+            update_trees_time = batch_timer.stop()
             logger.debug(f"Binary Restarts Map: {self.binary_restarts_map}")
 
             # propagate deletions to all nodes
+            batch_timer.start()
             for tree_idx, tree_nodes in self.binary_restarts_map.items():
                 for node in tree_nodes:
                     node.process_deletions(del_ids)
+            propagate_deletions_time = batch_timer.stop()
 
             # combine answers from all trees
             true_answer, private_answer = initialize_answer_vars(self.query)
@@ -288,10 +318,12 @@ class BinaryRestartsQueryEngine(QueryEngine):
             true_pool.close()
             true_pool.join()
 
+            batch_timer.start()
             private_pool = Pool(self.num_threads)
             private_results = private_pool.map(private_answer_worker, (node for node in binary_nodes))
             private_pool.close()
             private_pool.join()
+            private_answers_time = batch_timer.stop()
 
             for result in true_results:
                 true_answer += result
@@ -302,6 +334,19 @@ class BinaryRestartsQueryEngine(QueryEngine):
             # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
             np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save timing info for current batch
+            with open(f"{self.save_path_prefix}_timing_batch{i}.pkl", "wb") as f:
+                time_dict = {
+                    "node_init_time": node_init_time,
+                    "update_trees_time": update_trees_time,
+                    "propagate_deletions_time": propagate_deletions_time,
+                    "private_answers_time": private_answers_time
+                }
+                logger.debug(f"Binary Restarts Time: {time_dict}")
+                dill.dump({
+                    "time": time_dict
+                }, f)
 
             # save state into checkpoint file
             if save_checkpts is True:
@@ -357,7 +402,10 @@ class IntervalRestartsQueryEngine(QueryEngine):
             node_i = i + 1
             logger.debug(f"Created Node ID: {node_i}, Level: {utils.get_interval_tree_level(node_i)}")
 
+            batch_timer = Timer(logger=None)
+
             # update current IDs (all IDs in dataset after the current batch is processed)
+            batch_timer.start()
             self.current_ids.extend(ins_ids)
             for del_id in del_ids:
                 if del_id in self.current_ids:
@@ -391,6 +439,8 @@ class IntervalRestartsQueryEngine(QueryEngine):
             node = RestartNode(ids_for_node, self.query,
                                epsilon=epsilon_for_node, delta=delta_for_node,
                                num_threads=self.num_threads, is_interval=True)
+            node_init_time = batch_timer.stop()
+
             logger.debug(f"Query for Node {node_i}: {self.query}")
 
             # add current node to map
@@ -398,8 +448,10 @@ class IntervalRestartsQueryEngine(QueryEngine):
             logger.debug(f"Interval Restarts List: {self.interval_restarts_list}")
 
             # propagate deletions to all nodes
+            batch_timer.start()
             for node in self.interval_restarts_list:
                 node.process_deletions(del_ids)
+            propagate_deletions_time = batch_timer.stop()
 
             # get answers
             true_answer, private_answer = initialize_answer_vars(self.query)
@@ -413,10 +465,12 @@ class IntervalRestartsQueryEngine(QueryEngine):
             true_pool.close()
             true_pool.join()
 
+            batch_timer.start()
             private_pool = Pool(self.num_threads)
             private_results = private_pool.map(private_answer_worker, (node for node in interval_nodes))
             private_pool.close()
             private_pool.join()
+            private_answers_time = batch_timer.stop()
 
             for result in true_results:
                 true_answer += result
@@ -427,6 +481,19 @@ class IntervalRestartsQueryEngine(QueryEngine):
             # save answers for current batch
             np.savez(f"{self.save_path_prefix}_true_ans_batch{i}", np.array(true_answer))
             np.savez(f"{self.save_path_prefix}_private_ans_batch{i}", np.array(private_answer))
+
+            # save timing info for current batch
+            with open(f"{self.save_path_prefix}_timing_batch{i}.pkl", "wb") as f:
+                time_dict = {
+                    "node_init_time": node_init_time,
+                    "update_trees_time": 0,
+                    "propagate_deletions_time": propagate_deletions_time,
+                    "private_answers_time": private_answers_time
+                }
+                logger.debug(f"Interval Restarts Time: {time_dict}")
+                dill.dump({
+                    "time": time_dict
+                }, f)
 
             # save state into checkpoint file
             if save_checkpts:
@@ -470,14 +537,14 @@ if __name__ == "__main__":
             privstr = "eps" + str(epsilon).replace(".", "_")
             if delta:
                 privstr += "del" + str(delta).replace(".", "_").replace("^", "_")
-            num_runs = 3
+            num_runs = 1
             org_seed = 1234
             exp_save_dir = Path(f"../save/{dataset_name}_{comparison_type}_{query_type}"
                                 f"_{privstr}_{num_runs}runs_{org_seed}oseed")
             if not Path.is_dir(exp_save_dir):
                 os.mkdir(exp_save_dir)
             start_from_batch_num = None
-            num_batches = 25
+            num_batches = 2
             predicates = ["sex == 0 & race == 0", "sex == 1 & race == 0",
                           "sex == 0 & race == 1", "sex == 1 & race == 1",
                           "sex == 0 & race == 2", "sex == 1 & race == 2",
@@ -491,7 +558,7 @@ if __name__ == "__main__":
             num_threads = 4
 
             # run mechanisms on the same dataset NUM_RUNS number of times
-            for run in range(1, num_runs):
+            for run in range(num_runs):
                 print("On run number:", run)
                 seed = org_seed + run
                 rng = np.random.default_rng(seed)

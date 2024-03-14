@@ -11,7 +11,7 @@ query_type: "mwem_pgm"
 comparison_type: "all"
 epsilon: 10.0
 delta: 1e-09
-num_runs: 3
+num_runs: 10
 org_seed: 1234
 start_from_batch_num: null
 num_batches: 25
