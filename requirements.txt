@@ -13,3 +13,4 @@ networkx~=3.2.1
 scipy~=1.11.3
 jax==0.4.20
 jaxlib==0.4.20
+private-pgm @ git+https://github.com/ryan112358/private-pgm.git
