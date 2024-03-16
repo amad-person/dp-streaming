@@ -11,5 +11,5 @@ seaborn==0.13.0
 dill~=0.3.7
 networkx~=3.2.1
 scipy~=1.11.3
-jax=0.4.20
-jaxlib=0.4.20
+jax==0.4.20
+jaxlib==0.4.20
