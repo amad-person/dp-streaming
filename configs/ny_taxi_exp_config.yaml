@@ -11,10 +11,10 @@ query_type: "mwem_pgm"
 comparison_type: "all"
 epsilon: 10.0
 delta: 1e-09
-num_runs: 10
+num_runs: 3
 org_seed: 1234
 start_from_batch_num: null
-num_batches: 25
+num_batches: 50
 predicates_filename: "ny_taxi_predicates.json"
 num_threads: 4
 num_runs_for_plot: 1

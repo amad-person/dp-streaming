@@ -121,7 +121,6 @@ def get_random_ins_and_del_times(num_rows, start_date, end_date, datetime_dtype,
 
 def get_deterministic_ins_and_del_times(num_rows, start_date, batch_size, window_size):
     num_batches = num_rows // batch_size
-    print(num_batches)
     insertion_times, deletion_times = [], []
     for r in range(num_batches):
         insertion_time = start_date + timedelta(days=r)
@@ -774,33 +773,36 @@ if __name__ == "__main__":
                            domain_path=ny_taxi_data_domain_path,
                            size=ny_taxi_data_size,
                            enc_type=encoding_type)
+    print("Preprocessing NYC Taxi dataset done!")
 
-    # data_source = ACSDataSource(survey_year='2018',
-    #                             horizon='1-Year',
-    #                             survey='person')
-    # acs_data = data_source.get_data(states=["NY"], download=True)
-    # acs_data_subset = "public_cov"
-    # acs_data_size = "medium"
-    # encoding_type = "ohe"
-    # for batch_size in [5, 10, 25, 50]:
-    #     for window_size in [1, 3, 5, 10]:
-    #         acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-    #         create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
-    #                                       size=acs_data_size,
-    #                                       acs_data=acs_data,
-    #                                       enc_type=encoding_type,
-    #                                       batch_size=batch_size,
-    #                                       window_size=window_size)
+    data_source = ACSDataSource(survey_year='2018',
+                                horizon='1-Year',
+                                survey='person')
+    acs_data = data_source.get_data(states=["NY"], download=True)
+    acs_data_subset = "public_cov"
+    acs_data_size = "medium"
+    encoding_type = "ohe"
+    for batch_size in [10]:
+        for window_size in [10]:
+            acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
+            create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+                                          size=acs_data_size,
+                                          acs_data=acs_data,
+                                          enc_type=encoding_type,
+                                          batch_size=batch_size,
+                                          window_size=window_size)
+    print("Preprocessing ACS Public Cov dataset done!")
 
-    # adult_dataset_path = f"./adult.csv"
-    # adult_size = "small"
-    # encoding_type = "ohe"
-    # adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
-    # for batch_size in [5]:
-    #     for window_size in [1, 3, 5, 10]:
-    #         create_adult_dataset(path=adult_dataset_path,
-    #                              domain_path=adult_dataset_domain_path,
-    #                              size=adult_size,
-    #                              enc_type=encoding_type,
-    #                              batch_size=batch_size,
-    #                              window_size=window_size)
+    adult_dataset_path = f"./adult.csv"
+    adult_size = "small"
+    encoding_type = "ohe"
+    adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
+    for batch_size in [5, 10, 25, 50, 100]:
+        for window_size in [1, 5, 10, 25, 50, 100]:
+            create_adult_dataset(path=adult_dataset_path,
+                                 domain_path=adult_dataset_domain_path,
+                                 size=adult_size,
+                                 enc_type=encoding_type,
+                                 batch_size=batch_size,
+                                 window_size=window_size)
+    print("Preprocessing Adult dataset done!")
