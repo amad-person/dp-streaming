@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     for batch_size in exp_config["batch_size"]:
         print("Batch Size:", batch_size)
-        for window_size in exp_config["batch_size"]:
+        for window_size in exp_config["window_size"]:
             print("Window Size:", window_size)
             dataset_prefix = exp_config["dataset_prefix"]
             dataset_name = f"{dataset_prefix}_batch{batch_size}_window{window_size}"
