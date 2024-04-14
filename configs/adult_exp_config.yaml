@@ -4,7 +4,6 @@ batch_size:
   - 10
 window_size:
   - 1
-  - 3
   - 5
   - 10
 time_int_type: "days"
@@ -15,11 +14,11 @@ query_type: "mwem_pgm"
 comparison_type: "all"
 epsilon: 10.0
 delta: 1e-09
-num_runs: 10
+num_runs: 3
 org_seed: 1234
 start_from_batch_num: null
 num_batches: 25
 predicates_filename: "adult_predicates.json"
-num_threads: 4
-num_runs_for_plot: 1
-batches_for_plot: 5
+num_threads: 8
+num_runs_for_plot: 3
+batches_for_plot: 25

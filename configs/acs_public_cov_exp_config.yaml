@@ -16,6 +16,6 @@ org_seed: 1234
 start_from_batch_num: null
 num_batches: 25
 predicates_filename: "acs_public_cov_predicates.json"
-num_threads: 4
+num_threads: 8
 num_runs_for_plot: 1
 batches_for_plot: 5
