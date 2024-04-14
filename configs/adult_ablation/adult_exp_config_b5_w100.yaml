@@ -6,7 +6,7 @@ window_size:
 time_int_type: "days"
 time_int_quantity: 1
 time_int_str: "1day"
-data_encoding_type: "binarized"
+data_encoding_type: "ohe"
 query_type: "mwem_pgm"
 comparison_type: "all"
 epsilon: 10.0
