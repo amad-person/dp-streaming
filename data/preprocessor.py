@@ -1,5 +1,7 @@
+import argparse
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import json
 from datetime import datetime, timedelta
 from rdt import HyperTransformer
@@ -322,7 +324,7 @@ def create_adult_dataset(path, domain_path, size, enc_type, batch_size, window_s
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./adult_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(Path(__file__).parent / f"./adult_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
@@ -489,7 +491,7 @@ def create_acs_health_ins_dataset(domain_path, size, acs_data, enc_type, batch_s
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./acs_health_ins_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(Path(__file__).parent / f"./acs_health_ins_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
@@ -669,7 +671,7 @@ def create_acs_public_cov_dataset(domain_path, size, acs_data, enc_type, batch_s
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./acs_public_cov_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(Path(__file__).parent / f"./acs_public_cov_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
@@ -758,16 +760,16 @@ def create_ny_taxi_dataset(path, year, domain_path, size, enc_type, batch_size=N
     df["Deletion Time"] = deletion_times
 
     # save processed dataset
-    df.to_csv(f"./ny_taxi_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
+    df.to_csv(Path(__file__).parent / f"./ny_taxi_{size}_batch{batch_size}_window{window_size}_{enc_type}.csv",
               index_label="Person ID")
 
 
-if __name__ == "__main__":
+def process_create_ny_taxi_command(args):
     ny_taxi_data_year = 2023
-    ny_taxi_data_path = f"./yellow_tripdata_2023-01.parquet"
+    ny_taxi_data_path = Path(__file__).parent / f"./yellow_tripdata_2023-01.parquet"
     ny_taxi_data_size = "medium"
     encoding_type = "binarized"
-    ny_taxi_data_domain_path = f"./ny_taxi_{ny_taxi_data_size}_{encoding_type}_domain.json"
+    ny_taxi_data_domain_path = Path(__file__).parent / f"./ny_taxi_{ny_taxi_data_size}_{encoding_type}_domain.json"
     create_ny_taxi_dataset(path=ny_taxi_data_path,
                            year=ny_taxi_data_year,
                            domain_path=ny_taxi_data_domain_path,
@@ -775,6 +777,8 @@ if __name__ == "__main__":
                            enc_type=encoding_type)
     print("Preprocessing NYC Taxi dataset done!")
 
+
+def process_create_acs_public_cov_command(args):
     data_source = ACSDataSource(survey_year='2018',
                                 horizon='1-Year',
                                 survey='person')
@@ -782,27 +786,56 @@ if __name__ == "__main__":
     acs_data_subset = "public_cov"
     acs_data_size = "medium"
     encoding_type = "ohe"
-    for batch_size in [10]:
-        for window_size in [10]:
-            acs_data_domain_path = f"./acs_{acs_data_subset}_{acs_data_size}_{encoding_type}_domain.json"
-            create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
-                                          size=acs_data_size,
-                                          acs_data=acs_data,
-                                          enc_type=encoding_type,
-                                          batch_size=batch_size,
-                                          window_size=window_size)
+    acs_data_domain_path = Path(__file__).parent / (f"./acs_{acs_data_subset}_{acs_data_size}"
+                                                    f"_{encoding_type}_domain.json")
+    create_acs_public_cov_dataset(domain_path=acs_data_domain_path,
+                                  size=acs_data_size,
+                                  acs_data=acs_data,
+                                  enc_type=encoding_type,
+                                  batch_size=args.batch_size,
+                                  window_size=args.window_size)
     print("Preprocessing ACS Public Cov dataset done!")
 
-    adult_dataset_path = f"./adult.csv"
+
+def process_create_adult_command(args):
+    adult_dataset_path = Path(__file__).parent / f"./adult.csv"
     adult_size = "small"
     encoding_type = "ohe"
-    adult_dataset_domain_path = f"./adult_{adult_size}_{encoding_type}_domain.json"
-    for batch_size in [5, 10, 25, 50, 100]:
-        for window_size in [1, 5, 10, 25, 50, 100]:
-            create_adult_dataset(path=adult_dataset_path,
-                                 domain_path=adult_dataset_domain_path,
-                                 size=adult_size,
-                                 enc_type=encoding_type,
-                                 batch_size=batch_size,
-                                 window_size=window_size)
+    adult_dataset_domain_path = Path(__file__).parent / f"./adult_{adult_size}_{encoding_type}_domain.json"
+    create_adult_dataset(path=adult_dataset_path,
+                         domain_path=adult_dataset_domain_path,
+                         size=adult_size,
+                         enc_type=encoding_type,
+                         batch_size=args.batch_size,
+                         window_size=args.window_size)
     print("Preprocessing Adult dataset done!")
+
+
+def cli():
+    parser = argparse.ArgumentParser(description="Preprocess datasets for experiments")
+
+    subparsers = parser.add_subparsers(title="Dataset Types",
+                                       dest="subparser_name")
+    valid_subcommands = ["create_ny_taxi", "create_acs_public_cov", "create_adult"]
+
+    parser_ny_taxi = subparsers.add_parser("create_ny_taxi", help="NY Taxi 2023 Dataset")
+    parser_ny_taxi.set_defaults(func=process_create_ny_taxi_command)
+
+    parser_acs_public_cov = subparsers.add_parser("create_acs_public_cov", help="ACS Public Coverage Dataset")
+    parser_acs_public_cov.add_argument("batch_size", type=int, help="Batch Size")
+    parser_acs_public_cov.add_argument("window_size", type=int, help="Window Size")
+    parser_acs_public_cov.set_defaults(func=process_create_acs_public_cov_command)
+
+    parser_adult = subparsers.add_parser("create_adult", help="Adult Income Dataset")
+    parser_adult.add_argument("batch_size", type=int, help="Batch Size")
+    parser_adult.add_argument("window_size", type=int, help="Window Size")
+    parser_adult.set_defaults(func=process_create_adult_command)
+
+    args = parser.parse_args()
+
+    if args.subparser_name in valid_subcommands:
+        args.func(args)
+
+
+if __name__ == "__main__":
+    cli()
